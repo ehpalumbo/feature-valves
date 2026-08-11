@@ -42,12 +42,28 @@ public class FeatureCheckControllerIntegrationTest {
         final Path origin = Files.createDirectory(temporaryFolder.resolve("origin"));
         final Path local = temporaryFolder.resolve("local");
         try (Git git = Git.init().setDirectory(origin.toFile()).call()) {
-            writeYaml(origin.resolve("features/app/always-on.yml"),
-                    "active: true\neval:\n  - name\nvalves:\n  - name: on\n    tags:\n      t: x\n    value: 100\n");
-            writeYaml(origin.resolve("features/app/always-off.yml"),
-                    "active: true\neval:\n  - name\nvalves:\n  - name: off\n    tags:\n      t: x\n    value: 0\n");
+            writeYaml(origin.resolve("features/app/always-on.yml"), """
+                    active: true
+                    eval:
+                      - name
+                    valves:
+                      - name: on
+                        tags:
+                          t: x
+                        value: 100
+                    """);
+            writeYaml(origin.resolve("features/app/always-off.yml"), """
+                    active: true
+                    eval:
+                      - name
+                    valves:
+                      - name: off
+                        tags:
+                          t: x
+                        value: 0
+                    """);
             git.add().addFilepattern(".").call();
-            final PersonIdent identity = new PersonIdent("feature-valves", "feature-valves@example.org");
+            final var identity = new PersonIdent("feature-valves", "feature-valves@example.org");
             git.commit().setAuthor(identity).setCommitter(identity).setMessage("initial features").call();
         }
         System.setProperty("features.git.remote.url", origin.toString());

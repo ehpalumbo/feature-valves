@@ -97,7 +97,7 @@ public class LocalFeatureFileRepositoryTest {
 
     @Test
     public void testMissingRootPathYieldsError() throws Exception {
-        final LocalFeatureFileRepository missing =
+        final var missing =
                 new LocalFeatureFileRepository(baseFolder.resolve("does-not-exist").toString());
         StepVerifier
                 .create(missing.loadAll())

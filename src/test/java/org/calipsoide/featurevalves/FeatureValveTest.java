@@ -15,12 +15,12 @@ public class FeatureValveTest {
 
     @Test
     public void matchesOnlyWhenAllValveTagsArePresent() {
-        final FeatureCheck allTags = new FeatureCheck(
+        final var allTags = new FeatureCheck(
                 Arrays.asList(new Tag("animal", "cat"), new Tag("size", "large"), new Tag("name", "x")));
         assertThat(valve.matches(allTags)).isTrue();
-        final FeatureCheck missingTag = new FeatureCheck(Collections.singletonList(new Tag("animal", "cat")));
+        final var missingTag = new FeatureCheck(Collections.singletonList(new Tag("animal", "cat")));
         assertThat(valve.matches(missingTag)).isFalse();
-        final FeatureCheck empty = new FeatureCheck(Collections.emptyList());
+        final var empty = new FeatureCheck(Collections.emptyList());
         assertThat(valve.matches(empty)).isFalse();
     }
 
@@ -34,16 +34,16 @@ public class FeatureValveTest {
 
     @Test
     public void hundredAllowsAnyLevelZeroAllowsNone() {
-        final FeatureValve alwaysOn = new FeatureValve("on", ExpositionLevel.ofPercentage(100), Collections.emptyList());
+        final var alwaysOn = new FeatureValve("on", ExpositionLevel.ofPercentage(100), Collections.emptyList());
         assertThat(alwaysOn.allows(ExpositionLevel.ofPercentage(99))).isTrue();
-        final FeatureValve alwaysOff = new FeatureValve("off", ExpositionLevel.ZERO, Collections.emptyList());
+        final var alwaysOff = new FeatureValve("off", ExpositionLevel.ZERO, Collections.emptyList());
         assertThat(alwaysOff.allows(ExpositionLevel.ofPercentage(0))).isFalse();
     }
 
     @Test
     public void cardinalityIsTheValveTagCount() {
         assertThat(valve.getCardinality()).isEqualTo(2);
-        final FeatureValve noTags = new FeatureValve("none", ExpositionLevel.ZERO, Collections.emptyList());
+        final var noTags = new FeatureValve("none", ExpositionLevel.ZERO, Collections.emptyList());
         assertThat(noTags.getCardinality()).isEqualTo(0);
     }
 

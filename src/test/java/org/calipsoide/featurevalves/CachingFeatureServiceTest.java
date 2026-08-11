@@ -17,7 +17,7 @@ public class CachingFeatureServiceTest {
 
     @Test
     public void acceptedFeatureRoundTrips() {
-        final CachingFeatureService service = new CachingFeatureService("PT1H");
+        final var service = new CachingFeatureService("PT1H");
         final Feature feature = feature();
         service.accept(feature);
         StepVerifier.create(service.findBy(id)).expectNext(feature).verifyComplete();
@@ -25,14 +25,14 @@ public class CachingFeatureServiceTest {
 
     @Test
     public void unknownIdYieldsEmpty() {
-        final CachingFeatureService service = new CachingFeatureService("PT1H");
-        final FeatureId unknown = new FeatureId(ClientApplicationId.of("app"), "nope");
+        final var service = new CachingFeatureService("PT1H");
+        final var unknown = new FeatureId(ClientApplicationId.of("app"), "nope");
         StepVerifier.create(service.findBy(unknown)).verifyComplete();
     }
 
     @Test
     public void entryExpiresAfterTtl() throws Exception {
-        final CachingFeatureService service = new CachingFeatureService("PT1S");
+        final var service = new CachingFeatureService("PT1S");
         service.accept(feature());
         Thread.sleep(1200);
         StepVerifier.create(service.findBy(id)).verifyComplete();

@@ -51,7 +51,7 @@ public class FeatureTest {
     @Test
     public void noMatchingValveReturnsFalse() {
         final Feature feature = feature(fixedLevel(0), true);
-        final FeatureCheck otherTags = new FeatureCheck(Collections.singletonList(new Tag("other", "y")));
+        final var otherTags = new FeatureCheck(Collections.singletonList(new Tag("other", "y")));
         assertThat(feature.execute(otherTags)).isFalse();
     }
 

@@ -9,21 +9,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class YamlFileFeatureFactoryTest {
 
-    private static final String README_STYLE_YAML =
-            "active: true\n" +
-                    "eval:\n" +
-                    "  - name\n" +
-                    "valves:\n" +
-                    "  - name: all.large.cats\n" +
-                    "    tags:\n" +
-                    "      size: large\n" +
-                    "      animal: cat\n" +
-                    "    value: 10\n" +
-                    "  - name: some.small.dogs\n" +
-                    "    tags:\n" +
-                    "      size: small\n" +
-                    "      animal: dog\n" +
-                    "    value: 25\n";
+    private static final String README_STYLE_YAML = """
+            active: true
+            eval:
+              - name
+            valves:
+              - name: all.large.cats
+                tags:
+                  size: large
+                  animal: cat
+                value: 10
+              - name: some.small.dogs
+                tags:
+                  size: small
+                  animal: dog
+                value: 25
+            """;
 
     private final YamlFileFeatureFactory factory = new YamlFileFeatureFactory();
 
@@ -48,17 +49,24 @@ public class YamlFileFeatureFactoryTest {
 
     @Test
     public void missingActiveDefaultsToTrue() {
-        assertThat(read("eval:\n  - name\n").toString()).contains("active=true");
+        assertThat(read("""
+                eval:
+                  - name
+                """).toString()).contains("active=true");
     }
 
     @Test
     public void missingValvesDefaultsToEmptyList() {
-        assertThat(read("active: true\neval:\n  - name\n").toString()).contains("valves=[]");
+        assertThat(read("""
+                active: true
+                eval:
+                  - name
+                """).toString()).contains("valves=[]");
     }
 
     @Test
     public void malformedYamlThrowsOnRead() {
-        final FeatureFile malformed = new FeatureFile(id, CharBuffer.wrap("active: [unclosed"));
+        final var malformed = new FeatureFile(id, CharBuffer.wrap("active: [unclosed"));
         assertThatThrownBy(() -> factory.read(malformed)).isInstanceOf(Exception.class);
     }
 
