@@ -12,7 +12,7 @@ public class FeatureCheckRequest {
 
     private Map<String, String> tags;
 
-    @JsonCreator
+    @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
     public FeatureCheckRequest(Map<String, String> tags) {
         this.tags = tags;
     }
