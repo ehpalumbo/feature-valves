@@ -36,3 +36,7 @@ In this case, the valve named "all.large.cats" is applied and the hash of the ta
 
 ### How to use it?
 TODO - This service can be easily containerized (e.g. using Docker), and it can be deployed side-by-side with its client application server to be locally called, or as an ordinary remote service if latency is not an issue.
+
+### Module Docs
+
+Please refer to the [Module Docs Index](docs/index.md) for further details.
