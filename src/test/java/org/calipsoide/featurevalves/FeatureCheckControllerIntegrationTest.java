@@ -11,6 +11,8 @@ import org.springframework.boot.webtestclient.autoconfigure.AutoConfigureWebTest
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import java.io.IOException;
@@ -38,9 +40,8 @@ public class FeatureCheckControllerIntegrationTest {
     private static final String NON_MATCHING_BODY = "{\"other\":\"y\"}";
 
     @BeforeAll
-    public static void setUpOriginAndSystemProperties() throws Exception {
+    public static void setUpOrigin() throws Exception {
         final Path origin = Files.createDirectory(temporaryFolder.resolve("origin"));
-        final Path local = temporaryFolder.resolve("local");
         try (Git git = Git.init().setDirectory(origin.toFile()).call()) {
             writeYaml(origin.resolve("features/app/always-on.yml"), """
                     active: true
@@ -66,12 +67,17 @@ public class FeatureCheckControllerIntegrationTest {
             final var identity = new PersonIdent("feature-valves", "feature-valves@example.org");
             git.commit().setAuthor(identity).setCommitter(identity).setMessage("initial features").call();
         }
-        System.setProperty("features.git.remote.url", origin.toString());
-        System.setProperty("features.git.local.path", local.toString());
-        System.setProperty("features.git.local.data", local.resolve("features").toString());
-        System.setProperty("features.git.remote.branch", "master");
-        System.setProperty("features.cache.ttl", "PT1H");
-        System.setProperty("features.refresh.interval", "PT1H");
+    }
+
+    @DynamicPropertySource
+    public static void registerProperties(DynamicPropertyRegistry registry) {
+        final Path local = temporaryFolder.resolve("local");
+        registry.add("features.git.remote.url", () -> temporaryFolder.resolve("origin").toString());
+        registry.add("features.git.local.path", local::toString);
+        registry.add("features.git.local.data", () -> local.resolve("features").toString());
+        registry.add("features.git.remote.branch", () -> "master");
+        registry.add("features.cache.ttl", () -> "PT1H");
+        registry.add("features.refresh.interval", () -> "PT1H");
     }
 
     @Test
