@@ -14,3 +14,7 @@ The design of the service: its component boundaries, technology choices, and how
 The domain mental models behind the request evaluation semantics, distinct from the source signatures.
 
 - [Feature Valve](concepts/feature-valve.md) - How a valve, its tags, exposition level, and deterministic hashing decide whether a request gets flagged ON or OFF.
+
+## Planning
+
+- [Spring Boot 4.1.0 Upgrade Plan](plan/spring-boot-4-upgrade/README.md) - Phased implementation plan (test-first coverage gate, then the Boot 4.1.0 / JDK 25 upgrade) derived from the [SIA](sia/spring-boot-4-upgrade.md).
