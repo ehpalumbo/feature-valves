@@ -68,4 +68,51 @@ public class LocalFeatureFileRepositoryTest {
                 .verifyComplete();
     }
 
+    @Test
+    public void testYmlAndYamlFilesBothPickedUpInFilenameOrder() throws Exception {
+        final File folder = baseFolder.newFolder();
+        final File first = new File(folder, "a.yml");
+        final File second = new File(folder, "b.yaml");
+        BufferedWriter writer = Files.newWriter(first, Charset.defaultCharset());
+        writer.write("active: true");
+        writer.close();
+        writer = Files.newWriter(second, Charset.defaultCharset());
+        writer.write("active: false");
+        writer.close();
+        final ClientApplicationId applicationId = ClientApplicationId.of(folder.getName());
+        StepVerifier
+                .create(repository.loadAll())
+                .assertNext(file -> {
+                    assertThat(file.getId()).isEqualTo(new FeatureId(applicationId, "a"));
+                    assertThat(file.getBuffer().toString()).isEqualTo("active: true");
+                })
+                .assertNext(file -> {
+                    assertThat(file.getId()).isEqualTo(new FeatureId(applicationId, "b"));
+                    assertThat(file.getBuffer().toString()).isEqualTo("active: false");
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    public void testRootLevelFileIsNotAnAppDirectory() throws Exception {
+        final File rootFile = baseFolder.newFile("root-note.txt");
+        BufferedWriter writer = Files.newWriter(rootFile, Charset.defaultCharset());
+        writer.write("just a file");
+        writer.close();
+        StepVerifier
+                .create(repository.loadAll())
+                .expectNextCount(0)
+                .verifyComplete();
+    }
+
+    @Test
+    public void testMissingRootPathYieldsError() throws Exception {
+        final LocalFeatureFileRepository missing =
+                new LocalFeatureFileRepository(new File(baseFolder.getRoot(), "does-not-exist").getAbsolutePath());
+        StepVerifier
+                .create(missing.loadAll())
+                .expectError()
+                .verify();
+    }
+
 }

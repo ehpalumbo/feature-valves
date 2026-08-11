@@ -95,9 +95,9 @@ This phase establishes the regression safety net **before** any upgrade work, on
 - **Prerequisites / Dependencies:** None.
 - **Affected Files:** `src/test/java/org/calipsoide/featurevalves/FeatureCheckRequestTest.java` (NEW)
 - **Affected Symbols:** `FeatureCheckRequest`
-- **Description:** Use `new ObjectMapper()` (Jackson 2 on the Boot 2 classpath) to deserialize `{"tags":{"a":"1","b":"2"}}` into `FeatureCheckRequest` and assert the `tags` map. This locks the pre-upgrade binding contract and becomes a Jackson 3 probe.
+- **Description:** Use `new ObjectMapper()` (Jackson 2 on the Boot 2 classpath) to deserialize `{"a":"1","b":"2"}` into `FeatureCheckRequest` and assert the `tags` map. The single-arg `@JsonCreator(Map)` is a *delegate* creator (parameter names are not retained in the JDK 8 build), so the request body is a **flat tag map** — not the `{"tags":{...}}` shape claimed in the original SIA (see README correction #3). This locks the pre-upgrade binding contract and becomes a Jackson 3 probe.
 - **Acceptance Criteria:**
-  - [ ] Deserializing `{"tags":{"a":"1"}}` yields a request whose `getTags()` equals `{a:1}`.
+  - [ ] Deserializing `{"a":"1","b":"2"}` yields a request whose `getTags()` equals `{a:1, b:2}`.
 
 #### 0.8. Add `FeatureCheckResponseTest`
 
@@ -159,9 +159,9 @@ This phase establishes the regression safety net **before** any upgrade work, on
   - **Async wait:** bounded poll (no new deps) re-POSTing `/feature_valves/app/always-on/checks` until a non-404 status or ~15s timeout, since `FeatureLoader` populates the cache asynchronously at startup.
   - **Request API note:** on Boot 2.0.0.M4 use `.syncBody(...)` (`.bodyValue` exists only from Spring 5.1).
 - **Acceptance Criteria:**
-  - [ ] `POST /feature_valves/app/always-on/checks` with `{"tags":{"name":"x","t":"x"}}` → `200` with body `$.result == true`.
+  - [ ] `POST /feature_valves/app/always-on/checks` with `{"name":"x","t":"x"}` → `200` with body `$.result == true`.
   - [ ] Same request against `always-off` → `200` with `$.result == false`.
-  - [ ] Existing feature, non-matching tags (`{"tags":{"other":"y"}}`) → `200` with `$.result == false` (corrected SIA behavior — not 404).
+  - [ ] Existing feature, non-matching tags (`{"other":"y"}`) → `200` with `$.result == false` (corrected SIA behavior — not 404).
   - [ ] Unknown feature (`app/nope`) → `404`.
 
 ### Phase Gate
@@ -169,12 +169,15 @@ This phase establishes the regression safety net **before** any upgrade work, on
 #### 0.13. Run full build on JDK 8 and commit
 
 - **Prerequisites / Dependencies:** Tasks 0.1–0.12.
-- **Affected Files:** All Phase 0 test files (committed together).
-- **Affected Symbols:** None (test-only).
+- **Affected Files:** All Phase 0 test files (committed together) plus one `src/main` fix (see deviations below).
+- **Affected Symbols:** None (test files) except the `LocalFeatureFileRepository.filesOf` ordering fix.
 - **Description:** With `JAVA_HOME` → Zulu 8, run `./gradlew build`. All unit tests + integration test must pass. Commit the entire Phase 0 suite as one reviewable commit.
+- **Deviations from the plan (approved):**
+  - `LocalFeatureFileRepository.filesOf` was rewritten to a single-pass, order-preserving `flatMapSequential`; the old `zipWith` over async `flatMap` reads was racy and made the pre-existing `testLoadAll` intermittently fail.
+  - The request-body contract is a flat tag map, not `{"tags":{...}}` (README correction #3).
 - **Acceptance Criteria:**
   - [ ] `./gradlew build` on JDK 8: BUILD SUCCESSFUL with all new tests green.
-  - [ ] Single commit containing only `src/test/**` changes.
+  - [ ] Single commit containing only `src/test/**` changes plus the `filesOf` fix and plan-doc corrections.
 
 ---
 
@@ -182,4 +185,4 @@ This phase establishes the regression safety net **before** any upgrade work, on
 
 1. `sdk install java <latest-zulu-8>`; `sdk use java 8.0.x-zulu`.
 2. `./gradlew build` — BUILD SUCCESSFUL; all unit tests and the integration test pass.
-3. Confirm no production (`src/main`) files changed in the commit.
+3. Confirm the only `src/main` change is the `LocalFeatureFileRepository.filesOf` ordering fix; the rest is `src/test`.

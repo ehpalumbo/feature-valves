@@ -56,13 +56,12 @@ public class LocalFeatureFileRepository implements FeatureFileRepository {
             Files.newDirectoryStream(folder, "*.{yml,yaml}").forEach(listing::add);
             listing.sort(comparing(Path::getFileName));
             final Flux<Path> paths = Flux.fromIterable(listing).filter(Files::isRegularFile);
-            final Flux<CharBuffer> buffers = paths.flatMap(this::read);
-            final Flux<FeatureId> ids = paths.map(path -> {
+            return paths.flatMapSequential(path -> {
                 final String filename = path.getFileName().toString();
                 final String code = filename.replaceAll("(\\.yml|\\.yaml)$", "");
-                return new FeatureId(applicationId, code);
+                final FeatureId id = new FeatureId(applicationId, code);
+                return read(path).map(buffer -> new FeatureFile(id, buffer));
             });
-            return ids.zipWith(buffers).map(tuple -> new FeatureFile(tuple.getT1(), tuple.getT2()));
         } catch (IOException e) {
             return Flux.error(e);
         }

@@ -26,8 +26,9 @@ This plan converts the [SIA](../../sia/spring-boot-4-upgrade.md) into a phased, 
 
 1. **`features.git.local.data` override is required** in the integration test. `LocalFeatureFileRepository` binds `${features.git.local.data}` (`LocalFeatureFileRepository.java:32`), not `features.git.local.path`; the test must set it to `<cloneDir>/features` or the loader reads the wrong directory.
 2. **"No matching tags" is not a 404.** `FeatureCheckController.check` returns 404 only when the feature is absent from the cache; when the feature exists but no valve matches, `Feature.execute` returns `false` → `200 {"result":false}` (`FeatureCheckController.java:47`, `Feature.java:42`).
-3. **Request body is `{"tags":{...}}`, not a flat map.** `FeatureCheckRequest` binds a `tags` map via `@JsonCreator` (`FeatureCheckRequest.java:16`), contrary to the flat README example.
+3. **Request body is a flat map — `{"name":"x"}`, not `{"tags":{...}}`.** `FeatureCheckRequest`'s single-arg `@JsonCreator(Map)` (`FeatureCheckRequest.java:16`) is a *delegate* creator: the JDK 8 build does not retain parameter names, so Jackson passes the entire root object as the map. The README's flat example is the real contract (locked by `FeatureCheckRequestTest`).
 4. **Malformed YAML throws eagerly.** `YamlFileFeatureFactory.read` parses before returning the `Mono` (`YamlFileFeatureFactory.java:24`), so the test asserts a thrown exception on invocation, not an error Mono.
+5. **Phase 0 deviation — `LocalFeatureFileRepository.filesOf` had an ordering race.** `ids.zipWith(buffers)` paired sorted ids with async `flatMap` reads that could complete out of order, making the pre-existing `testLoadAll` flaky. Fixed with a single-pass, order-preserving `flatMapSequential` that pairs each buffer with its own path-derived id (`LocalFeatureFileRepository.java:56`). This is the only `src/main` change in the Phase 0 commit.
 
 ---
 
