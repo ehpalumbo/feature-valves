@@ -1,7 +1,7 @@
 package org.calipsoide.featurevalves;
 
 import com.google.common.base.Joiner;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;

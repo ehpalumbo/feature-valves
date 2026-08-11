@@ -9,13 +9,11 @@ import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.nio.CharBuffer;
-import java.nio.channels.AsynchronousFileChannel;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 
-import static java.nio.channels.AsynchronousFileChannel.open;
 import static java.nio.charset.Charset.defaultCharset;
 import static java.util.Comparator.comparing;
 
@@ -68,15 +66,10 @@ public class LocalFeatureFileRepository implements FeatureFileRepository {
     }
 
     private Mono<CharBuffer> read(Path path) {
-        try {
-            final AsynchronousFileChannel channel = open(path);
-            return DataBufferUtils
-                    .read(channel, new DefaultDataBufferFactory(), BUFFER_SIZE)
-                    .map(buffer -> defaultCharset().decode(buffer.asByteBuffer()))
-                    .next();
-        } catch (IOException e) {
-            return Mono.error(e);
-        }
+        return DataBufferUtils
+                .read(path, new DefaultDataBufferFactory(), BUFFER_SIZE)
+                .map(buffer -> defaultCharset().decode(buffer.asByteBuffer()))
+                .next();
     }
 
 }

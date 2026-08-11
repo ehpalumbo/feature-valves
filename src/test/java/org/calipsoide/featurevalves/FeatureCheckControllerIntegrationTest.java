@@ -1,33 +1,31 @@
 package org.calipsoide.featurevalves;
 
-import com.google.common.io.Files;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.lib.PersonIdent;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webtestclient.autoconfigure.AutoConfigureWebTestClient;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
-import java.io.File;
+import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
-@RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @AutoConfigureWebTestClient
 public class FeatureCheckControllerIntegrationTest {
 
-    @ClassRule
-    public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir
+    public static Path temporaryFolder;
 
     @Autowired
     private WebTestClient webTestClient;
@@ -39,22 +37,22 @@ public class FeatureCheckControllerIntegrationTest {
     private static final String MATCHING_BODY = "{\"name\":\"x\",\"t\":\"x\"}";
     private static final String NON_MATCHING_BODY = "{\"other\":\"y\"}";
 
-    @BeforeClass
+    @BeforeAll
     public static void setUpOriginAndSystemProperties() throws Exception {
-        final File origin = temporaryFolder.newFolder("origin");
-        final File local = new File(temporaryFolder.getRoot(), "local");
-        try (Git git = Git.init().setDirectory(origin).call()) {
-            writeYaml(new File(origin, "features/app/always-on.yml"),
+        final Path origin = Files.createDirectory(temporaryFolder.resolve("origin"));
+        final Path local = temporaryFolder.resolve("local");
+        try (Git git = Git.init().setDirectory(origin.toFile()).call()) {
+            writeYaml(origin.resolve("features/app/always-on.yml"),
                     "active: true\neval:\n  - name\nvalves:\n  - name: on\n    tags:\n      t: x\n    value: 100\n");
-            writeYaml(new File(origin, "features/app/always-off.yml"),
+            writeYaml(origin.resolve("features/app/always-off.yml"),
                     "active: true\neval:\n  - name\nvalves:\n  - name: off\n    tags:\n      t: x\n    value: 0\n");
             git.add().addFilepattern(".").call();
             final PersonIdent identity = new PersonIdent("feature-valves", "feature-valves@example.org");
             git.commit().setAuthor(identity).setCommitter(identity).setMessage("initial features").call();
         }
-        System.setProperty("features.git.remote.url", origin.getAbsolutePath());
-        System.setProperty("features.git.local.path", local.getAbsolutePath());
-        System.setProperty("features.git.local.data", new File(local, "features").getAbsolutePath());
+        System.setProperty("features.git.remote.url", origin.toString());
+        System.setProperty("features.git.local.path", local.toString());
+        System.setProperty("features.git.local.data", local.resolve("features").toString());
         System.setProperty("features.git.remote.branch", "master");
         System.setProperty("features.cache.ttl", "PT1H");
         System.setProperty("features.refresh.interval", "PT1H");
@@ -66,7 +64,7 @@ public class FeatureCheckControllerIntegrationTest {
         webTestClient.post()
                 .uri(ALWAYS_ON)
                 .contentType(MediaType.APPLICATION_JSON)
-                .syncBody(MATCHING_BODY)
+                .bodyValue(MATCHING_BODY)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody().jsonPath("$.result").isEqualTo(true);
@@ -78,7 +76,7 @@ public class FeatureCheckControllerIntegrationTest {
         webTestClient.post()
                 .uri(ALWAYS_OFF)
                 .contentType(MediaType.APPLICATION_JSON)
-                .syncBody(MATCHING_BODY)
+                .bodyValue(MATCHING_BODY)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody().jsonPath("$.result").isEqualTo(false);
@@ -90,7 +88,7 @@ public class FeatureCheckControllerIntegrationTest {
         webTestClient.post()
                 .uri(ALWAYS_ON)
                 .contentType(MediaType.APPLICATION_JSON)
-                .syncBody(NON_MATCHING_BODY)
+                .bodyValue(NON_MATCHING_BODY)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody().jsonPath("$.result").isEqualTo(false);
@@ -102,7 +100,7 @@ public class FeatureCheckControllerIntegrationTest {
         webTestClient.post()
                 .uri(UNKNOWN)
                 .contentType(MediaType.APPLICATION_JSON)
-                .syncBody(MATCHING_BODY)
+                .bodyValue(MATCHING_BODY)
                 .exchange()
                 .expectStatus().isNotFound();
     }
@@ -117,20 +115,20 @@ public class FeatureCheckControllerIntegrationTest {
         }
     }
 
-    private HttpStatus statusOf(String uri, String body) {
+    private HttpStatusCode statusOf(String uri, String body) {
         return webTestClient.post()
                 .uri(uri)
                 .contentType(MediaType.APPLICATION_JSON)
-                .syncBody(body)
+                .bodyValue(body)
                 .exchange()
                 .expectBody()
                 .returnResult()
                 .getStatus();
     }
 
-    private static void writeYaml(File file, String content) throws Exception {
-        file.getParentFile().mkdirs();
-        Files.write(content, file, Charset.defaultCharset());
+    private static void writeYaml(Path file, String content) throws IOException {
+        Files.createDirectories(file.getParent());
+        Files.write(file, content.getBytes(Charset.defaultCharset()));
     }
 
 }
