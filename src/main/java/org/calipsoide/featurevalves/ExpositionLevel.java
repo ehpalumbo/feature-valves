@@ -1,8 +1,7 @@
 package org.calipsoide.featurevalves;
 
+import lombok.EqualsAndHashCode;
 import org.springframework.util.Assert;
-
-import java.util.Objects;
 
 /**
  * A rollout exposure threshold expressed as an integer percentage in
@@ -12,6 +11,7 @@ import java.util.Objects;
  * greater than the request's {@link ExpositionLevel}, so raising a valve's
  * percentage widens exposure. See {@link FeatureValve#allows(ExpositionLevel)}.
  */
+@EqualsAndHashCode
 public class ExpositionLevel implements Comparable<ExpositionLevel> {
 
     /** Zero-percent exposure: allows no requests. */
@@ -33,19 +33,6 @@ public class ExpositionLevel implements Comparable<ExpositionLevel> {
     static ExpositionLevel ofPercentage(int percentage) {
         Assert.isTrue(percentage >= 0 && percentage <= 100, "percentage must be between 0 and 100");
         return new ExpositionLevel(percentage);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        ExpositionLevel that = (ExpositionLevel) o;
-        return percentage == that.percentage;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(percentage);
     }
 
     @Override

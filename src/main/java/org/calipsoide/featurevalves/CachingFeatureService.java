@@ -1,7 +1,7 @@
 package org.calipsoide.featurevalves;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -21,20 +21,11 @@ import static reactor.core.publisher.Mono.justOrEmpty;
  * @see CacheConfig
  */
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class CachingFeatureService implements FeatureService, Consumer<Feature> {
 
-    private static final Logger logger = LoggerFactory.getLogger(CachingFeatureService.class);
-
     private final Cache cache;
-
-    /**
-     * Creates the service over the given cache.
-     *
-     * @param cache the underlying Spring {@link Cache} holding parsed features
-     */
-    public CachingFeatureService(Cache cache) {
-        this.cache = cache;
-    }
 
     /**
      * {@inheritDoc}
@@ -56,7 +47,7 @@ public class CachingFeatureService implements FeatureService, Consumer<Feature> 
     @Override
     public void accept(Feature feature) {
         cache.put(feature.getId(), feature);
-        logger.debug("Reloaded - {}", feature);
+        log.debug("Reloaded - {}", feature);
     }
 
 }
