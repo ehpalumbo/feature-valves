@@ -1,12 +1,12 @@
 package org.calipsoide.featurevalves;
 
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 /**
  * Verifies {@link Feature#execute(FeatureCheck)}: inactive features always
@@ -17,12 +17,10 @@ public class FeatureTest {
 
     private final FeatureId id = new FeatureId(ClientApplicationId.of("app"), "feature");
 
-    private final FeatureValve lowCardinality =
-            new FeatureValve("low", ExpositionLevel.ofPercentage(100),
-                    Collections.singletonList(new Tag("animal", "cat")));
-    private final FeatureValve highCardinality =
-            new FeatureValve("high", ExpositionLevel.ofPercentage(50),
-                    Arrays.asList(new Tag("animal", "cat"), new Tag("size", "large")));
+    private final FeatureValve lowCardinality = new FeatureValve("low", ExpositionLevel.ofPercentage(100),
+            Collections.singletonList(new Tag("animal", "cat")));
+    private final FeatureValve highCardinality = new FeatureValve("high", ExpositionLevel.ofPercentage(50),
+            Arrays.asList(new Tag("animal", "cat"), new Tag("size", "large")));
 
     private final FeatureCheck matchingCheck = new FeatureCheck(
             Arrays.asList(new Tag("animal", "cat"), new Tag("size", "large"), new Tag("name", "x")));

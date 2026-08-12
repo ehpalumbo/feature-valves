@@ -1,7 +1,8 @@
 package org.calipsoide.featurevalves;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
+
+import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Flux;
 
 /**
@@ -11,25 +12,12 @@ import reactor.core.publisher.Flux;
  * @see GitRepoManager#update()
  */
 @Repository
+@RequiredArgsConstructor
 public class GitFeatureFileRepository implements FeatureFileRepository {
 
-    private GitRepoManager gitRepoManager;
+    private final GitRepoManager gitRepoManager;
 
-    private FeatureFileRepository fileRepository;
-
-    /**
-     * Creates the git-backed repository wrapping the local one.
-     *
-     * @param gitRepoManager manages the local clone
-     * @param fileRepository the local repository reading files from the clone
-     */
-    @Autowired
-    public GitFeatureFileRepository(
-            GitRepoManager gitRepoManager,
-            LocalFeatureFileRepository fileRepository) {
-        this.gitRepoManager = gitRepoManager;
-        this.fileRepository = fileRepository;
-    }
+    private final FeatureFileRepository fileRepository;
 
     /**
      * {@inheritDoc}

@@ -1,10 +1,10 @@
 package org.calipsoide.featurevalves;
 
+import java.io.File;
+
 import org.eclipse.jgit.api.Git;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
-import java.io.File;
 
 /**
  * Manages the local Git repository that stores feature definition files.

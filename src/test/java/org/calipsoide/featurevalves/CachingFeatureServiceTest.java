@@ -1,14 +1,16 @@
 package org.calipsoide.featurevalves;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
-import org.junit.jupiter.api.Test;
-import org.springframework.cache.Cache;
-import org.springframework.cache.caffeine.CaffeineCache;
-import reactor.test.StepVerifier;
-
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Optional;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.cache.Cache;
+import org.springframework.cache.caffeine.CaffeineCache;
+
+import com.github.benmanes.caffeine.cache.Caffeine;
+
+import reactor.test.StepVerifier;
 
 /**
  * Verifies {@link CachingFeatureService}: accepted features round-trip through

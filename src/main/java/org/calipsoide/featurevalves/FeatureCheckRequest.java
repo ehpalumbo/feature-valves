@@ -1,8 +1,8 @@
 package org.calipsoide.featurevalves;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-
 import java.util.Map;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
 
 /**
  * The request payload for a feature check: a flat map of request tags. The

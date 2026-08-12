@@ -1,9 +1,9 @@
 package org.calipsoide.featurevalves;
 
+import static java.util.stream.Collectors.toList;
+
 import java.util.List;
 import java.util.Optional;
-
-import static java.util.stream.Collectors.toList;
 
 /**
  * An {@link Evaluator} that derives the exposure level from the hash of request
@@ -31,11 +31,10 @@ public record HashingEvaluator(List<String> tagNames) implements Evaluator {
      */
     @Override
     public Optional<ExpositionLevel> evaluate(FeatureCheck check) {
-        final List<String> values =
-                check.tags().stream()
-                        .filter(tag -> tagNames.contains(tag.code()))
-                        .map(Tag::value)
-                        .collect(toList());
+        final List<String> values = check.tags().stream()
+                .filter(tag -> tagNames.contains(tag.code()))
+                .map(Tag::value)
+                .collect(toList());
         if (values.isEmpty()) {
             return Optional.empty();
         } else {

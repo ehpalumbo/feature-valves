@@ -1,10 +1,10 @@
 package org.calipsoide.featurevalves;
 
-import lombok.Getter;
-import lombok.ToString;
-
 import java.util.List;
 import java.util.Objects;
+
+import lombok.Getter;
+import lombok.ToString;
 
 /**
  * A feature flag definition that decides, per request, whether the flag is ON

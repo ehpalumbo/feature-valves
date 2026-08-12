@@ -1,15 +1,15 @@
 package org.calipsoide.featurevalves;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.time.Duration;
+
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import java.time.Duration;
 
 /**
  * Load pipeline that periodically refreshes parsed {@link Feature}s into the
@@ -21,9 +21,8 @@ import java.time.Duration;
  * and pushes the results into the {@link CachingFeatureService}.
  */
 @Service
+@Slf4j
 public class FeatureLoader implements InitializingBean {
-
-    private static final Logger logger = LoggerFactory.getLogger(FeatureLoader.class);
 
     private FeatureFileRepository fileRepository;
     private YamlFileFeatureFactory featureFactory;
@@ -62,7 +61,7 @@ public class FeatureLoader implements InitializingBean {
         final Flux<Long> timer = Flux.interval(refresh);
         Flux.concat(now, timer)
                 .flatMap(time -> {
-                    logger.debug("Loading features configuration files.");
+                    log.debug("Loading features configuration files.");
                     return fileRepository.loadAll();
                 })
                 .flatMap(file -> featureFactory.read(file))

@@ -1,16 +1,17 @@
 package org.calipsoide.featurevalves;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import static java.util.stream.Collectors.toList;
+
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
-
-import java.util.List;
-
-import static java.util.stream.Collectors.toList;
 
 /**
  * REST endpoint that evaluates feature checks on incoming requests.
@@ -19,19 +20,10 @@ import static java.util.stream.Collectors.toList;
  * @see Feature#execute(FeatureCheck)
  */
 @RestController
+@RequiredArgsConstructor
 public class FeatureCheckController {
 
-    private FeatureService featureService;
-
-    /**
-     * Creates the controller over the caching feature service.
-     *
-     * @param featureService the service used to resolve features
-     */
-    @Autowired
-    public FeatureCheckController(CachingFeatureService featureService) {
-        this.featureService = featureService;
-    }
+    private final FeatureService featureService;
 
     /**
      * Evaluates a feature check for the given application and feature.

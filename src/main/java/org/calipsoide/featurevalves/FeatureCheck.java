@@ -10,5 +10,4 @@ import java.util.List;
  * @see Feature#execute(FeatureCheck)
  */
 public record FeatureCheck(List<Tag> tags) {
-
 }
