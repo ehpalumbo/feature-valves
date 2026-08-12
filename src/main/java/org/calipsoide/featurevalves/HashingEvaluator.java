@@ -40,8 +40,8 @@ public record HashingEvaluator(List<String> tagNames) implements Evaluator {
             return Optional.empty();
         } else {
             final String source = String.join(":", values);
-            final int hash = Math.abs(source.hashCode());
-            return Optional.of(ExpositionLevel.ofPercentage(hash % 100));
+            final int level = Math.abs(source.hashCode() % 100);
+            return Optional.of(ExpositionLevel.ofPercentage(level));
         }
     }
 
