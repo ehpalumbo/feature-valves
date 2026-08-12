@@ -7,7 +7,8 @@ import java.util.List;
  * {@link ExpositionLevel} threshold.
  * <p>
  * A valve <em>matches</em> a {@link FeatureCheck} when every required tag is
- * present among the check's tags (a strict subset requirement), and
+ * present among the check's tags and the check is not empty (the required
+ * tags form a subset of the check's tags), and
  * <em>allows</em> a request when the valve's exposition is strictly greater
  * than the request's level. See {@link Feature#execute(FeatureCheck)}.
  *
