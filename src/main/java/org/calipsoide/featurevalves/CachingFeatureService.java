@@ -1,15 +1,11 @@
 package org.calipsoide.featurevalves;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
-import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
-import java.time.Duration;
 import java.util.function.Consumer;
 
 import static reactor.core.publisher.Mono.justOrEmpty;
@@ -24,9 +20,8 @@ public class CachingFeatureService implements FeatureService, Consumer<Feature> 
 
     private final Cache cache;
 
-    public CachingFeatureService(@Value("${features.cache.ttl}") String ttl) {
-        this.cache = new CaffeineCache("features",
-                Caffeine.newBuilder().expireAfterWrite(Duration.parse(ttl)).build());
+    public CachingFeatureService(Cache cache) {
+        this.cache = cache;
     }
 
     @Override

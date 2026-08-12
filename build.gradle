@@ -16,14 +16,15 @@ repositories {
 }
 
 dependencies {
-    implementation platform('org.springframework.boot:spring-boot-dependencies:4.1.0')
+    def springBootDependencies = platform('org.springframework.boot:spring-boot-dependencies:4.1.0')
+    implementation springBootDependencies
     implementation('org.springframework.boot:spring-boot-starter-webflux')
     implementation('com.github.ben-manes.caffeine:caffeine')
     implementation('org.springframework:spring-context-support')
     implementation('org.eclipse.jgit:org.eclipse.jgit:7.7.1.202607240634-r')
-    compileOnly platform('org.springframework.boot:spring-boot-dependencies:4.1.0')
+    compileOnly springBootDependencies
     compileOnly('org.projectlombok:lombok')
-    annotationProcessor platform('org.springframework.boot:spring-boot-dependencies:4.1.0')
+    annotationProcessor springBootDependencies
     annotationProcessor('org.projectlombok:lombok')
     testImplementation('org.springframework.boot:spring-boot-starter-test')
     testImplementation('org.springframework.boot:spring-boot-webtestclient')
