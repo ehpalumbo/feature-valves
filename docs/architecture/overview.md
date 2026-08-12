@@ -7,11 +7,14 @@ tags:
   - "feature-flags"
   - "spring-webflux"
   - "eventual-consistency"
-timestamp: "2026-08-11T00:00:00Z"
+timestamp: "2026-08-13T00:00:00Z"
 related:
   - "[Reactive Data Flow](reactive-data-flow.md)"
   - "[Feature Valve](../concepts/feature-valve.md)"
-  - "src/main/java/org/calipsoide/featurevalves"
+  - "src/main/java/org/calipsoide/featurevalves/application"
+  - "src/main/java/org/calipsoide/featurevalves/domain"
+  - "src/main/java/org/calipsoide/featurevalves/web"
+  - "src/main/java/org/calipsoide/featurevalves/infra"
   - "src/main/resources/application.yaml"
 resource:
   - "build.gradle"
@@ -41,6 +44,17 @@ The application is split into two broad, deliberately decoupled paths:
 
 - **Load / refresh pipeline** — `FeatureLoader` polls on a fixed interval, delegates to `GitFeatureFileRepository` (which first updates the local clone via `GitRepoManager`, then reads files via `LocalFeatureFileRepository`), converts each `FeatureFile` into a `Feature` via `YamlFileFeatureFactory`, and pushes the result into `CachingFeatureService`.
 - **Request evaluation path** — `FeatureCheckController` accepts a feature check request, resolves a cached `Feature`, and lets the `Feature` domain object execute the check against a set of request tags.
+
+## Package / Layer Structure
+
+The source tree is organized into architectural layers under the `org.calipsoide.featurevalves` package, with `Application.java` kept at the root as the composition root:
+
+- **`domain/`** — the pure domain model and evaluation engine: value objects (`ClientApplicationId`, `FeatureId`, `Tag`, `ExpositionLevel`), the `Feature`/`FeatureValve` semantics, and the `Evaluator`/`HashingEvaluator`. This layer carries no framework or infrastructure dependencies; everything else depends on it.
+- **`application/`** — application services and port definitions that orchestrate the load and evaluation flows, including the `FeatureFileRepository` / `FeatureReader` interfaces and `FeatureLoader`/`CachingFeatureService` implementations.
+- **`web/`** — the reactive HTTP boundary: `FeatureCheckController` plus its request/response DTOs.
+- **`infra/`** — infrastructure adapters implementing the ports: `git/` (repository handling), `yaml/` (feature definition parsing via `YamlFileFeatureFactory`), and `caching/` (Caffeine cache bean config).
+
+This layering keeps the domain independent of transport and persistence details and gives each layer a single, clearly named package to search. The two flows described above map onto these layers: the refresh pipeline runs through `application` + `infra`, while the request path runs `web` → `application` → `domain`.
 
 ## Design Highlights
 

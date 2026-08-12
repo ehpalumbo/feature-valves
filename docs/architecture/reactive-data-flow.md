@@ -7,14 +7,14 @@ tags:
   - "project-reactor"
   - "data-flow"
   - "caching"
-timestamp: "2026-08-11T00:00:00Z"
+timestamp: "2026-08-12T00:00:00Z"
 related:
   - "[Overview](overview.md)"
   - "[Feature Valve](../concepts/feature-valve.md)"
 resource:
-  - "src/main/java/org/calipsoide/featurevalves/FeatureLoader.java"
-  - "src/main/java/org/calipsoide/featurevalves/CachingFeatureService.java"
-  - "src/main/java/org/calipsoide/featurevalves/FeatureCheckController.java"
+  - "src/main/java/org/calipsoide/featurevalves/application/FeatureLoader.java"
+  - "src/main/java/org/calipsoide/featurevalves/application/CachingFeatureService.java"
+  - "src/main/java/org/calipsoide/featurevalves/web/FeatureCheckController.java"
 ---
 
 # Reactive Data Flow

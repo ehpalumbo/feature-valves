@@ -7,15 +7,15 @@ tags:
   - "feature-flags"
   - "incremental-rollout"
   - "evaluation"
-timestamp: "2026-08-11T00:00:00Z"
+timestamp: "2026-08-12T00:00:00Z"
 related:
   - "[Overview](../architecture/overview.md)"
   - "[Reactive Data Flow](../architecture/reactive-data-flow.md)"
   - "features/test/test-feature.yml"
 resource:
-  - "src/main/java/org/calipsoide/featurevalves/Feature.java"
-  - "src/main/java/org/calipsoide/featurevalves/FeatureValve.java"
-  - "src/main/java/org/calipsoide/featurevalves/HashingEvaluator.java"
+  - "src/main/java/org/calipsoide/featurevalves/domain/Feature.java"
+  - "src/main/java/org/calipsoide/featurevalves/domain/FeatureValve.java"
+  - "src/main/java/org/calipsoide/featurevalves/domain/HashingEvaluator.java"
 ---
 
 # Feature Valve
