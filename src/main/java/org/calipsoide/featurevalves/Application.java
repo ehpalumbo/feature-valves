@@ -5,8 +5,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
  * Spring Boot application entry point for the Feature Valves service.
- *
- * @see FeatureCheckController
  */
 @SpringBootApplication
 public class Application {
@@ -16,7 +14,7 @@ public class Application {
      *
      * @param args command line arguments
      */
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         SpringApplication.run(Application.class, args);
     }
 
