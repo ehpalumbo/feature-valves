@@ -1,8 +1,5 @@
 package org.calipsoide.featurevalves;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.MoreObjects;
-
 import java.util.List;
 import java.util.Optional;
 
@@ -11,35 +8,22 @@ import static java.util.stream.Collectors.toList;
 /**
  * Created by epalumbo on 9/16/17.
  */
-public class HashingEvaluator implements Evaluator {
-
-    private List<String> tagNames;
-
-    public HashingEvaluator(List<String> tagNames) {
-        this.tagNames = tagNames;
-    }
+public record HashingEvaluator(List<String> tagNames) implements Evaluator {
 
     @Override
     public Optional<ExpositionLevel> evaluate(FeatureCheck check) {
         final List<String> values =
-                check.getTags().stream()
-                        .filter(tag -> tagNames.contains(tag.getCode()))
-                        .map(Tag::getValue)
+                check.tags().stream()
+                        .filter(tag -> tagNames.contains(tag.code()))
+                        .map(Tag::value)
                         .collect(toList());
         if (values.isEmpty()) {
             return Optional.empty();
         } else {
-            final String source = Joiner.on(":").join(values);
+            final String source = String.join(":", values);
             final int hash = Math.abs(source.hashCode());
             return Optional.of(ExpositionLevel.ofPercentage(hash % 100));
         }
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this)
-                .add("tags", tagNames)
-                .toString();
     }
 
 }

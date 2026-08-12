@@ -13,7 +13,7 @@ public class FeatureIdTest {
 
     @Test
     public void lowercasesTheFeatureCode() {
-        assertThat(new FeatureId(app, "MY-FEATURE").getFeatureCode()).isEqualTo("my-feature");
+        assertThat(new FeatureId(app, "MY-FEATURE").featureCode()).isEqualTo("my-feature");
     }
 
     @Test

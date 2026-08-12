@@ -1,7 +1,5 @@
 package org.calipsoide.featurevalves;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.Yaml;
 import reactor.core.publisher.Mono;
@@ -20,18 +18,18 @@ import static reactor.core.publisher.Mono.just;
 public class YamlFileFeatureFactory {
 
     public Mono<Feature> read(FeatureFile file) {
-        final String content = file.getBuffer().toString();
+        final String content = file.buffer().toString();
         final FeatureData data = new Yaml().loadAs(content, FeatureData.class);
         final HashingEvaluator evaluator =
-                new HashingEvaluator(Optional.ofNullable(data.eval).orElseGet(ImmutableList::of));
+                new HashingEvaluator(Optional.ofNullable(data.eval).orElseGet(List::of));
         final List<FeatureValve> valves =
                 Optional.ofNullable(data.valves)
-                        .orElseGet(ImmutableList::of)
+                        .orElseGet(List::of)
                         .stream()
                         .map(valve -> {
                             final List<Tag> tags =
                                     Optional.ofNullable(valve.tags)
-                                            .orElseGet(ImmutableMap::of)
+                                            .orElseGet(Map::of)
                                             .entrySet()
                                             .stream()
                                             .map(entry -> new Tag(entry.getKey(), entry.getValue()))
@@ -43,7 +41,7 @@ public class YamlFileFeatureFactory {
                             return new FeatureValve(valve.name, exposition, tags);
                         })
                         .collect(toList());
-        return just(new Feature(file.getId(), valves, evaluator, data.active));
+        return just(new Feature(file.id(), valves, evaluator, data.active));
     }
 
     private static class FeatureData {

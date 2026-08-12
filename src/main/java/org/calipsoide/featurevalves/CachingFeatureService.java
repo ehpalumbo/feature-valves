@@ -1,17 +1,17 @@
 package org.calipsoide.featurevalves;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.Cache;
+import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.util.function.Consumer;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
 import static reactor.core.publisher.Mono.justOrEmpty;
 
 /**
@@ -22,17 +22,16 @@ public class CachingFeatureService implements FeatureService, Consumer<Feature> 
 
     private static final Logger logger = LoggerFactory.getLogger(CachingFeatureService.class);
 
-    private Cache<FeatureId, Feature> cache;
+    private final Cache cache;
 
     public CachingFeatureService(@Value("${features.cache.ttl}") String ttl) {
-        this.cache = CacheBuilder.newBuilder()
-                .expireAfterWrite(Duration.parse(ttl).getSeconds(), SECONDS)
-                .build();
+        this.cache = new CaffeineCache("features",
+                Caffeine.newBuilder().expireAfterWrite(Duration.parse(ttl)).build());
     }
 
     @Override
     public Mono<Feature> findBy(FeatureId id) {
-        final Feature cached = cache.getIfPresent(id);
+        final Feature cached = cache.get(id, Feature.class);
         return justOrEmpty(cached);
     }
 
