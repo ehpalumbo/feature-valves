@@ -1,6 +1,5 @@
 package org.calipsoide.featurevalves;
 
-import com.google.common.base.Joiner;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -41,7 +40,7 @@ public class HashingEvaluatorTest {
 
     @Test
     public void levelMatchesExpectedHashFormula() {
-        final String source = Joiner.on(":").join(Collections.singletonList("little.rose"));
+        final String source = String.join(":", Collections.singletonList("little.rose"));
         final int expected = Math.abs(source.hashCode()) % 100;
         final FeatureCheck check = checkWith(new Tag("name", "little.rose"));
         assertThat(evaluator.evaluate(check).get()).isEqualTo(ExpositionLevel.ofPercentage(expected));

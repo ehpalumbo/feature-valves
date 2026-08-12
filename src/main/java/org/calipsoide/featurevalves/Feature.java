@@ -1,33 +1,31 @@
 package org.calipsoide.featurevalves;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Objects;
-import com.google.common.collect.ImmutableList;
+import lombok.Getter;
+import lombok.ToString;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Created by epalumbo on 9/16/17.
  */
+@Getter
+@ToString
 public class Feature {
 
-    private FeatureId id;
+    private final FeatureId id;
 
-    private List<FeatureValve> valves;
+    private final List<FeatureValve> valves;
 
-    private Evaluator evaluator;
+    private final Evaluator evaluator;
 
-    private boolean active;
+    private final boolean active;
 
     public Feature(FeatureId id, List<FeatureValve> valves, Evaluator evaluator, boolean active) {
         this.id = id;
-        this.valves = ImmutableList.copyOf(valves);
+        this.valves = List.copyOf(valves);
         this.evaluator = evaluator;
         this.active = active;
-    }
-
-    public FeatureId getId() {
-        return id;
     }
 
     public boolean execute(FeatureCheck check) {
@@ -51,21 +49,12 @@ public class Feature {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Feature feature = (Feature) o;
-        return Objects.equal(id, feature.id);
+        return Objects.equals(id, feature.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(id);
+        return Objects.hash(id);
     }
 
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this)
-                .add("id", id)
-                .add("active", active)
-                .add("evaluator", evaluator)
-                .add("valves", valves)
-                .toString();
-    }
 }

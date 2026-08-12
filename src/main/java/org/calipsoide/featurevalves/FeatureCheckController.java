@@ -36,7 +36,7 @@ public class FeatureCheckController {
                 .findBy(id)
                 .map(feature -> {
                     final List<Tag> tags =
-                            request.getTags().entrySet().stream()
+                            request.tags().entrySet().stream()
                                     .map(entry -> new Tag(entry.getKey(), entry.getValue()))
                                     .collect(toList());
                     final FeatureCheck check = new FeatureCheck(tags);

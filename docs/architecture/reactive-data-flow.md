@@ -31,7 +31,7 @@ The service runs two independent flows: a background refresh that keeps the cach
    - delegates to `LocalFeatureFileRepository.loadAll()` to scan that directory.
 3. `LocalFeatureFileRepository` walks `features/<application>/` folders, lists `*.yml`/`*.yaml` files in filename order, and reads each with the reactive `DataBufferUtils.read(Path, …)` overload into `DataBuffer`s (in Spring 4 the old `AsynchronousFileChannel` variant is gone), yielding `FeatureFile` objects carrying the file content and a derived `FeatureId`.
 4. `YamlFileFeatureFactory.read(file)` parses the YAML and assembles a `Feature` (valves, evaluator, active flag). Parsing errors surface as errors in the reactive stream.
-5. The stream is subscribed to `CachingFeatureService` (a `Consumer<Feature>`), which inserts each parsed feature into a Guava `Cache<FeatureId, Feature>` with a write-side TTL (`features.cache.ttl`).
+5. The stream is subscribed to `CachingFeatureService` (a `Consumer<Feature>`), which inserts each parsed feature into a Caffeine cache (wrapped by Spring's `CaffeineCache`) with a write-side TTL (`features.cache.ttl`).
 
 A misfire or exception in the stream does not take the service down; the cache simply stops being refreshed until the next successful tick.
 

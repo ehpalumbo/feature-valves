@@ -40,8 +40,8 @@ public class YamlFileFeatureFactoryTest {
         assertThat(feature.getId()).isEqualTo(id);
         assertThat(feature.toString())
                 .contains("active=true")
-                .contains("evaluator=HashingEvaluator{tags=[name]}")
-                .contains("valves=[FeatureValve{name=all.large.cats")
+                .contains("evaluator=HashingEvaluator[tagNames=[name]]")
+                .contains("valves=[FeatureValve[name=all.large.cats")
                 .contains("exposition=10")
                 .contains("name=some.small.dogs")
                 .contains("exposition=25");

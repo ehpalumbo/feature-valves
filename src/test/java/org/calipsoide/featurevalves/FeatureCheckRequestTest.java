@@ -16,7 +16,7 @@ public class FeatureCheckRequestTest {
     public void deserializesFlatTagsMap() throws Exception {
         final FeatureCheckRequest request =
                 mapper.readValue("{\"a\":\"1\",\"b\":\"2\"}", FeatureCheckRequest.class);
-        final Map<String, String> tags = request.getTags();
+        final Map<String, String> tags = request.tags();
         assertThat(tags).containsExactly(entry("a", "1"), entry("b", "2"));
     }
 
@@ -24,7 +24,7 @@ public class FeatureCheckRequestTest {
     public void tagsAreBoundFromTheRootObject() throws Exception {
         final FeatureCheckRequest request =
                 mapper.readValue("{\"name\":\"x\",\"t\":\"x\"}", FeatureCheckRequest.class);
-        assertThat(request.getTags()).containsOnly(entry("name", "x"), entry("t", "x"));
+        assertThat(request.tags()).containsOnly(entry("name", "x"), entry("t", "x"));
     }
 
 }

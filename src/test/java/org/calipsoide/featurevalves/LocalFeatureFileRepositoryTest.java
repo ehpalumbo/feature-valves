@@ -43,13 +43,13 @@ public class LocalFeatureFileRepositoryTest {
                 .create(repository.loadAll())
                 .assertNext(file -> {
                     assertThat(file).isNotNull();
-                    assertThat(file.getId()).isEqualTo(new FeatureId(applicationId, "first-feature"));
-                    assertThat(file.getBuffer().toString()).isEqualTo("active: true");
+                    assertThat(file.id()).isEqualTo(new FeatureId(applicationId, "first-feature"));
+                    assertThat(file.buffer().toString()).isEqualTo("active: true");
                 })
                 .assertNext(file -> {
                     assertThat(file).isNotNull();
-                    assertThat(file.getId()).isEqualTo(new FeatureId(applicationId, "second-feature"));
-                    assertThat(file.getBuffer().toString()).isEqualTo("active: false");
+                    assertThat(file.id()).isEqualTo(new FeatureId(applicationId, "second-feature"));
+                    assertThat(file.buffer().toString()).isEqualTo("active: false");
                 })
                 .verifyComplete();
     }
@@ -76,12 +76,12 @@ public class LocalFeatureFileRepositoryTest {
         StepVerifier
                 .create(repository.loadAll())
                 .assertNext(file -> {
-                    assertThat(file.getId()).isEqualTo(new FeatureId(applicationId, "a"));
-                    assertThat(file.getBuffer().toString()).isEqualTo("active: true");
+                    assertThat(file.id()).isEqualTo(new FeatureId(applicationId, "a"));
+                    assertThat(file.buffer().toString()).isEqualTo("active: true");
                 })
                 .assertNext(file -> {
-                    assertThat(file.getId()).isEqualTo(new FeatureId(applicationId, "b"));
-                    assertThat(file.getBuffer().toString()).isEqualTo("active: false");
+                    assertThat(file.id()).isEqualTo(new FeatureId(applicationId, "b"));
+                    assertThat(file.buffer().toString()).isEqualTo("active: false");
                 })
                 .verifyComplete();
     }

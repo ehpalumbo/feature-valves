@@ -28,7 +28,8 @@ Feature Valves is a standalone feature flag service. Feature definitions live as
 
 - **Spring Boot 4.1.0 (spring-webflux, Spring Framework 7)** and **Project Reactor** — the application and request layer are fully reactive (`Mono`/`Flux`).
 - **Jackson 3** — JSON binding via `tools.jackson` on the Spring Framework 7 baseline.
-- **Guava** — the `Cache` used to hold parsed features with a configurable time-to-live.
+- **Caffeine via Spring's cache abstraction** — the cache that holds parsed features with a configurable time-to-live (a rewrite of Guava's cache, wrapped by `CaffeineCache`).
+- **Lombok** — generates getters/`toString` for the behavior-bearing classes.
 - **JGit** — cloning and pulling the remote repository that stores feature definition files.
 - **SnakeYAML** — parsing feature definition files into the domain model.
 - **Java 25** — source and target compatibility.

@@ -1,8 +1,8 @@
 package org.calipsoide.featurevalves;
 
-import com.google.common.base.Objects;
+import org.springframework.util.Assert;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import java.util.Objects;
 
 /**
  * Created by epalumbo on 9/16/17.
@@ -11,14 +11,14 @@ public class ExpositionLevel implements Comparable<ExpositionLevel> {
 
     public static final ExpositionLevel ZERO = ofPercentage(0);
 
-    private Integer percentage;
+    private final Integer percentage;
 
     private ExpositionLevel(int percentage) {
         this.percentage = percentage;
     }
 
     static ExpositionLevel ofPercentage(int percentage) {
-        checkArgument(percentage >= 0 && percentage <= 100, "percentage must be between 0 and 100");
+        Assert.isTrue(percentage >= 0 && percentage <= 100, "percentage must be between 0 and 100");
         return new ExpositionLevel(percentage);
     }
 
