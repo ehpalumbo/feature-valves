@@ -3,10 +3,19 @@ package org.calipsoide.featurevalves;
 import reactor.core.publisher.Mono;
 
 /**
- * Created by epalumbo on 9/17/17.
+ * Read-side contract for resolving a {@link Feature} by its {@link FeatureId}.
+ *
+ * @see CachingFeatureService
  */
 public interface FeatureService {
 
+    /**
+     * Returns the feature matching the given identifier.
+     *
+     * @param id the feature identifier
+     * @return a {@code Mono} of the {@link Feature} that completes empty when
+     *         no such feature is known
+     */
     Mono<Feature> findBy(FeatureId id);
 
 }

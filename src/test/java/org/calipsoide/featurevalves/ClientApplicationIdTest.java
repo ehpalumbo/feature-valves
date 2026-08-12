@@ -4,6 +4,10 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Verifies {@link ClientApplicationId}: the {@code of} factory normalizes to
+ * lower case and equality/hashing are case-insensitive.
+ */
 public class ClientApplicationIdTest {
 
     @Test

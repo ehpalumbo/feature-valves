@@ -22,6 +22,11 @@ import java.nio.file.Path;
 
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
+/**
+ * Full-context integration test driving the {@link FeatureCheckController}
+ * endpoint against a real local JGit repo: ON/OFF evaluation, non-matching
+ * tags yielding {@code 200/false}, and unknown features yielding {@code 404}.
+ */
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @AutoConfigureWebTestClient
 public class FeatureCheckControllerIntegrationTest {

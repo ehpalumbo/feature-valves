@@ -13,18 +13,38 @@ import java.util.List;
 import static java.util.stream.Collectors.toList;
 
 /**
- * Created by epalumbo on 9/16/17.
+ * REST endpoint that evaluates feature checks on incoming requests.
+ *
+ * @see FeatureService
+ * @see Feature#execute(FeatureCheck)
  */
 @RestController
 public class FeatureCheckController {
 
     private FeatureService featureService;
 
+    /**
+     * Creates the controller over the caching feature service.
+     *
+     * @param featureService the service used to resolve features
+     */
     @Autowired
     public FeatureCheckController(CachingFeatureService featureService) {
         this.featureService = featureService;
     }
 
+    /**
+     * Evaluates a feature check for the given application and feature.
+     * <p>
+     * Returns {@code 200 OK} with the evaluation result when the feature is
+     * known, or {@code 404 Not Found} when it is not.
+     *
+     * @param applicationCode the client application name
+     * @param featureCode     the feature code
+     * @param request         the request body carrying the tag data
+     * @return a {@code Mono} of the response, empty-cased via
+     *         {@link ResponseEntity#notFound()}
+     */
     @PostMapping("/feature_valves/{application}/{feature}/checks")
     public Mono<ResponseEntity<FeatureCheckResponse>> check(
             @PathVariable("application") String applicationCode,

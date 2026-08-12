@@ -7,6 +7,11 @@ import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Verifies the value semantics of {@link FeatureId}, {@link Tag}, and
+ * {@link FeatureCheck}: lower-casing normalization and content-based
+ * equality/hashing.
+ */
 public class FeatureIdTest {
 
     private final ClientApplicationId app = ClientApplicationId.of("app");

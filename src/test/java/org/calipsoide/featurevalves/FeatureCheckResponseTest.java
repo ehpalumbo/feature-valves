@@ -5,6 +5,10 @@ import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Verifies {@link FeatureCheckResponse} serialization for both {@code true}
+ * and {@code false} results.
+ */
 public class FeatureCheckResponseTest {
 
     private final ObjectMapper mapper = new ObjectMapper();

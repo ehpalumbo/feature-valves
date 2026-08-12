@@ -3,10 +3,20 @@ package org.calipsoide.featurevalves;
 import reactor.core.publisher.Flux;
 
 /**
- * Created by epalumbo on 9/18/17.
+ * Source of raw feature definition files, the seam that decouples the load
+ * pipeline from where files are stored.
+ *
+ * @see LocalFeatureFileRepository
+ * @see GitFeatureFileRepository
  */
 public interface FeatureFileRepository {
 
+    /**
+     * Loads all available feature files.
+     *
+     * @return a {@link Flux} of the loaded {@link FeatureFile}s, which may
+     *         emit an error if the underlying source cannot be read
+     */
     Flux<FeatureFile> loadAll();
 
 }

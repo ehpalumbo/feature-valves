@@ -8,6 +8,11 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Verifies {@link Feature#execute(FeatureCheck)}: inactive features always
+ * return {@code false}, the most specific matching valve governs the decision,
+ * and no match or an undeterminable level yield {@code false}.
+ */
 public class FeatureTest {
 
     private final FeatureId id = new FeatureId(ClientApplicationId.of("app"), "feature");

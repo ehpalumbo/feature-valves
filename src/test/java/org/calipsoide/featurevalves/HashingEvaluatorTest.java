@@ -7,6 +7,11 @@ import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Verifies {@link HashingEvaluator}: determinism and range of the hashed level,
+ * that only configured tags participate, empty results without configured tags,
+ * and the exact hash formula.
+ */
 public class HashingEvaluatorTest {
 
     private final HashingEvaluator evaluator = new HashingEvaluator(Collections.singletonList("name"));
@@ -40,8 +45,8 @@ public class HashingEvaluatorTest {
 
     @Test
     public void levelMatchesExpectedHashFormula() {
-        final String source = String.join(":", Collections.singletonList("little.rose"));
-        final int expected = Math.abs(source.hashCode()) % 100;
+        final String source = "little.rose";
+        final int expected = Math.abs(source.hashCode() % 100);
         final FeatureCheck check = checkWith(new Tag("name", "little.rose"));
         assertThat(evaluator.evaluate(check).get()).isEqualTo(ExpositionLevel.ofPercentage(expected));
     }
