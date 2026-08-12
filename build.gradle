@@ -18,8 +18,8 @@ repositories {
 dependencies {
     implementation platform('org.springframework.boot:spring-boot-dependencies:4.1.0')
     implementation('org.springframework.boot:spring-boot-starter-webflux')
-    implementation('com.google.guava:guava:23.0')
-    implementation('org.eclipse.jgit:org.eclipse.jgit:4.8.0.201706111038-r')
+    implementation('com.google.guava:guava:33.6.0-jre')
+    implementation('org.eclipse.jgit:org.eclipse.jgit:7.7.1.202607240634-r')
     testImplementation('org.springframework.boot:spring-boot-starter-test')
     testImplementation('org.springframework.boot:spring-boot-webtestclient')
     testImplementation('io.projectreactor:reactor-test')
