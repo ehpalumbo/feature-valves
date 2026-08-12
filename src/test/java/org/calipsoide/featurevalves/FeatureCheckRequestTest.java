@@ -8,6 +8,10 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
+/**
+ * Verifies {@link FeatureCheckRequest} deserialization: the flat JSON request
+ * body binds directly to the tags map.
+ */
 public class FeatureCheckRequestTest {
 
     private final ObjectMapper mapper = new ObjectMapper();

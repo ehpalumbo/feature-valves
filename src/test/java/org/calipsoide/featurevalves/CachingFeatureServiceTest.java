@@ -10,6 +10,11 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Optional;
 
+/**
+ * Verifies {@link CachingFeatureService}: accepted features round-trip through
+ * the cache, unknown ids yield an empty {@code Mono}, and entries expire after
+ * the configured TTL.
+ */
 public class CachingFeatureServiceTest {
 
     private final FeatureId id = new FeatureId(ClientApplicationId.of("app"), "feature");

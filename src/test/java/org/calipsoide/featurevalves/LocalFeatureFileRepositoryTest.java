@@ -13,7 +13,9 @@ import java.nio.file.Path;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Created by epalumbo on 9/17/17.
+ * Verifies {@link LocalFeatureFileRepository}: application folders are scanned
+ * for {@code .yml}/{@code .yaml} files in file-name order, non-matching and
+ * root-level files are ignored, and a missing root path surfaces as an error.
  */
 public class LocalFeatureFileRepositoryTest {
 

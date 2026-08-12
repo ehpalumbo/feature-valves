@@ -3,7 +3,11 @@ package org.calipsoide.featurevalves;
 import java.util.List;
 
 /**
- * Created by epalumbo on 9/16/17.
+ * The request data against which a {@link Feature} is evaluated: a set of
+ * key-value {@link Tag}s.
+ *
+ * @param tags the request tags
+ * @see Feature#execute(FeatureCheck)
  */
 public record FeatureCheck(List<Tag> tags) {
 

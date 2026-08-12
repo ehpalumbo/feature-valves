@@ -12,7 +12,13 @@ import reactor.core.publisher.Mono;
 import java.time.Duration;
 
 /**
- * Created by epalumbo on 9/17/17.
+ * Load pipeline that periodically refreshes parsed {@link Feature}s into the
+ * cache.
+ * <p>
+ * On startup and then every {@code features.refresh.interval}, the pipeline
+ * reloads all {@link FeatureFile}s from the {@link FeatureFileRepository},
+ * converts each into a {@link Feature} via the {@link YamlFileFeatureFactory},
+ * and pushes the results into the {@link CachingFeatureService}.
  */
 @Service
 public class FeatureLoader implements InitializingBean {
@@ -24,18 +30,32 @@ public class FeatureLoader implements InitializingBean {
     private CachingFeatureService cachingService;
     private Duration refresh;
 
+    /**
+     * Creates the loader with the components of the refresh pipeline.
+     *
+     * @param fileRepository   source of raw feature files
+     * @param featureFactory   factory parsing files into features
+     * @param cachingService   the cache that receives parsed features
+     * @param refreshInterval  the polling interval, parsed as a {@link Duration}
+     */
     @Autowired
     public FeatureLoader(
             GitFeatureFileRepository fileRepository,
             YamlFileFeatureFactory featureFactory,
             CachingFeatureService cachingService,
-            @Value("${features.refresh.interval}") String refresh) {
+            @Value("${features.refresh.interval}") String refreshInterval) {
         this.fileRepository = fileRepository;
         this.featureFactory = featureFactory;
         this.cachingService = cachingService;
-        this.refresh = Duration.parse(refresh);
+        this.refresh = Duration.parse(refreshInterval);
     }
 
+    /**
+     * Starts the refresh pipeline: an immediate load followed by periodic
+     * reloads on the configured interval.
+     *
+     * @throws Exception if scheduling the pipeline fails
+     */
     @Override
     public void afterPropertiesSet() throws Exception {
         final Mono<Integer> now = Mono.just(0);

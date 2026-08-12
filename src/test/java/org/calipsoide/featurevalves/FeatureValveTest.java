@@ -7,6 +7,11 @@ import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Verifies {@link FeatureValve} semantics: matching requires every valve tag to
+ * be present, allowing requires a strictly greater exposition, and cardinality
+ * is the required tag count.
+ */
 public class FeatureValveTest {
 
     private final FeatureValve valve =

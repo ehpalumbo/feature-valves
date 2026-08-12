@@ -12,11 +12,29 @@ import static java.util.stream.Collectors.toList;
 import static reactor.core.publisher.Mono.just;
 
 /**
- * Created by epalumbo on 9/16/17.
+ * Converts a {@link FeatureFile} into a domain {@link Feature} by parsing its
+ * YAML content via SnakeYAML.
+ * <p>
+ * Missing {@code eval} and {@code valves} sections default to empty, and a
+ * missing {@code active} field defaults to {@code true}.
+ *
+ * @see FeatureLoader
  */
 @Service
 public class YamlFileFeatureFactory {
 
+    /**
+     * Creates the factory (stateless).
+     */
+    public YamlFileFeatureFactory() {
+    }
+
+    /**
+     * Parses the given feature file into a {@link Feature}.
+     *
+     * @param file the raw feature file to parse
+     * @return a {@code Mono} of the resulting {@link Feature}
+     */
     public Mono<Feature> read(FeatureFile file) {
         final String content = file.buffer().toString();
         final FeatureData data = new Yaml().loadAs(content, FeatureData.class);

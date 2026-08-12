@@ -7,7 +7,12 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 
 /**
- * Created by epalumbo on 9/17/17.
+ * Manages the local Git repository that stores feature definition files.
+ * <p>
+ * Clones the configured remote on first use and pulls on subsequent updates,
+ * always targeting the configured branch.
+ *
+ * @see GitFeatureFileRepository
  */
 @Service
 public class GitRepoManager {
@@ -20,6 +25,13 @@ public class GitRepoManager {
 
     private Git git;
 
+    /**
+     * Creates the manager for the configured git repository.
+     *
+     * @param localPath local path where the clone lives
+     * @param url       remote repository URL
+     * @param branch    branch to track
+     */
     public GitRepoManager(
             @Value("${features.git.local.path}") String localPath,
             @Value("${features.git.remote.url}") String url,
@@ -29,6 +41,12 @@ public class GitRepoManager {
         this.branch = branch;
     }
 
+    /**
+     * Brings the local clone up to date: pulls when the path already contains
+     * a repository, clones it otherwise.
+     *
+     * @throws RuntimeException if the underlying git operation fails
+     */
     public void update() {
         try {
             if (localPath.isDirectory()) {

@@ -7,6 +7,11 @@ import java.nio.CharBuffer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * Verifies {@link YamlFileFeatureFactory}: README-style YAML is parsed into the
+ * expected domain model, missing fields take their defaults, and malformed YAML
+ * propagates an error.
+ */
 public class YamlFileFeatureFactoryTest {
 
     private static final String README_STYLE_YAML = """

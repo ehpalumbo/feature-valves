@@ -5,6 +5,10 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * Verifies {@link ExpositionLevel}: boundary acceptance and rejection, the
+ * {@code ZERO} constant, {@code compareTo} ordering, and string form.
+ */
 public class ExpositionLevelTest {
 
     @Test

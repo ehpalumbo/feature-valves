@@ -18,7 +18,14 @@ import static java.nio.charset.Charset.defaultCharset;
 import static java.util.Comparator.comparing;
 
 /**
- * Created by epalumbo on 9/17/17.
+ * A {@link FeatureFileRepository} that reads feature definition files from the
+ * local clone directory.
+ * <p>
+ * Each subdirectory of the data root is treated as a {@link ClientApplicationId};
+ * every {@code *.yml} / {@code *.yaml} file within it (sorted by file name)
+ * becomes a {@link FeatureFile} whose id is derived from the folder and file name.
+ *
+ * @see GitFeatureFileRepository
  */
 @Repository
 public class LocalFeatureFileRepository implements FeatureFileRepository {
@@ -27,10 +34,24 @@ public class LocalFeatureFileRepository implements FeatureFileRepository {
 
     private Path path;
 
+    /**
+     * Creates the repository rooted at the given data path.
+     *
+     * @param path the root directory containing per-application folders of
+     *             feature definition files
+     */
     public LocalFeatureFileRepository(@Value("${features.git.local.data}") String path) {
         this.path = FileSystems.getDefault().getPath(path);
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Non-directory entries at the root are ignored. Read failures are surfaced
+     * as errors in the returned {@link Flux}.
+     *
+     * @return a {@link Flux} over one {@link FeatureFile} per definition file
+     */
     @Override
     public Flux<FeatureFile> loadAll() {
         try {
@@ -47,6 +68,12 @@ public class LocalFeatureFileRepository implements FeatureFileRepository {
         }
     }
 
+    /**
+     * Loads the definition files for a single application, in file-name order.
+     *
+     * @param applicationId the application whose files should be read
+     * @return a {@link Flux} over that application's {@link FeatureFile}s
+     */
     private Flux<FeatureFile> filesOf(ClientApplicationId applicationId) {
         try {
             final Path folder = path.resolve(applicationId.toString());
@@ -65,6 +92,13 @@ public class LocalFeatureFileRepository implements FeatureFileRepository {
         }
     }
 
+    /**
+     * Decodes the given file into a {@link CharBuffer} using the platform
+     * default charset.
+     *
+     * @param path the file to read
+     * @return a {@code Mono} of the decoded content
+     */
     private Mono<CharBuffer> read(Path path) {
         return DataBufferUtils
                 .read(path, new DefaultDataBufferFactory(), BUFFER_SIZE)

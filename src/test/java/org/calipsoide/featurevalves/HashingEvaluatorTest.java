@@ -7,6 +7,11 @@ import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Verifies {@link HashingEvaluator}: determinism and range of the hashed level,
+ * that only configured tags participate, empty results without configured tags,
+ * and the exact hash formula.
+ */
 public class HashingEvaluatorTest {
 
     private final HashingEvaluator evaluator = new HashingEvaluator(Collections.singletonList("name"));
