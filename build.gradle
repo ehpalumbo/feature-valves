@@ -1,6 +1,11 @@
 plugins {
     id 'java'
     id 'org.springframework.boot' version '4.1.0'
+    id 'jacoco'
+}
+
+jacoco {
+    toolVersion = '0.8.15'
 }
 
 group = 'org.calipsoide'
@@ -33,6 +38,15 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    finalizedBy tasks.named('jacocoTestReport')
+}
+
+tasks.named('jacocoTestReport') {
+    reports {
+        xml.required = true
+        csv.required = false
+        html.required = true
+    }
 }
 
 tasks.withType(Javadoc).configureEach {
