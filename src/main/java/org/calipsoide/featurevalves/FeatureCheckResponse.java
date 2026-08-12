@@ -7,5 +7,4 @@ package org.calipsoide.featurevalves;
  * @see FeatureCheckController#check(String, String, FeatureCheckRequest)
  */
 public record FeatureCheckResponse(boolean result) {
-
 }

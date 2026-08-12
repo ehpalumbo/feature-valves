@@ -1,9 +1,10 @@
 package org.calipsoide.featurevalves;
 
-import org.junit.jupiter.api.Test;
-import tools.jackson.databind.ObjectMapper;
-
 import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
+
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Verifies {@link FeatureCheckResponse} serialization for both {@code true}

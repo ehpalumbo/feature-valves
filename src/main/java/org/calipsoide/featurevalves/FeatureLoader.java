@@ -1,14 +1,15 @@
 package org.calipsoide.featurevalves;
 
-import lombok.extern.slf4j.Slf4j;
+import java.time.Duration;
+
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import java.time.Duration;
 
 /**
  * Load pipeline that periodically refreshes parsed {@link Feature}s into the

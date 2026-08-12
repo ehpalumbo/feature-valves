@@ -1,11 +1,7 @@
 package org.calipsoide.featurevalves;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.buffer.DataBufferUtils;
-import org.springframework.core.io.buffer.DefaultDataBufferFactory;
-import org.springframework.stereotype.Repository;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import static java.nio.charset.Charset.defaultCharset;
+import static java.util.Comparator.comparing;
 
 import java.io.IOException;
 import java.nio.CharBuffer;
@@ -14,16 +10,23 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 
-import static java.nio.charset.Charset.defaultCharset;
-import static java.util.Comparator.comparing;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.buffer.DataBufferUtils;
+import org.springframework.core.io.buffer.DefaultDataBufferFactory;
+import org.springframework.stereotype.Repository;
+
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /**
  * A {@link FeatureFileRepository} that reads feature definition files from the
  * local clone directory.
  * <p>
- * Each subdirectory of the data root is treated as a {@link ClientApplicationId};
+ * Each subdirectory of the data root is treated as a
+ * {@link ClientApplicationId};
  * every {@code *.yml} / {@code *.yaml} file within it (sorted by file name)
- * becomes a {@link FeatureFile} whose id is derived from the folder and file name.
+ * becomes a {@link FeatureFile} whose id is derived from the folder and file
+ * name.
  *
  * @see GitFeatureFileRepository
  */

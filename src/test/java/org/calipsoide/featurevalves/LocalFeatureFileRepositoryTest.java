@@ -1,16 +1,17 @@
 package org.calipsoide.featurevalves;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import reactor.test.StepVerifier;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import reactor.test.StepVerifier;
 
 /**
  * Verifies {@link LocalFeatureFileRepository}: application folders are scanned
@@ -99,8 +100,7 @@ public class LocalFeatureFileRepositoryTest {
 
     @Test
     public void testMissingRootPathYieldsError() throws Exception {
-        final var missing =
-                new LocalFeatureFileRepository(baseFolder.resolve("does-not-exist").toString());
+        final var missing = new LocalFeatureFileRepository(baseFolder.resolve("does-not-exist").toString());
         StepVerifier
                 .create(missing.loadAll())
                 .expectError()

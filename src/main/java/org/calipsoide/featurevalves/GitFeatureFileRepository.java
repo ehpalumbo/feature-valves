@@ -1,7 +1,8 @@
 package org.calipsoide.featurevalves;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+
+import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Flux;
 
 /**

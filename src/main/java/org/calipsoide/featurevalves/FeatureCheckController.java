@@ -1,16 +1,17 @@
 package org.calipsoide.featurevalves;
 
-import lombok.RequiredArgsConstructor;
+import static java.util.stream.Collectors.toList;
+
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
-
-import java.util.List;
-
-import static java.util.stream.Collectors.toList;
 
 /**
  * REST endpoint that evaluates feature checks on incoming requests.

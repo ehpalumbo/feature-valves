@@ -1,11 +1,11 @@
 package org.calipsoide.featurevalves;
 
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Arrays;
 import java.util.Collections;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 /**
  * Verifies {@link FeatureValve} semantics: matching requires every valve tag to
@@ -14,9 +14,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class FeatureValveTest {
 
-    private final FeatureValve valve =
-            new FeatureValve("cats", ExpositionLevel.ofPercentage(50),
-                    Arrays.asList(new Tag("animal", "cat"), new Tag("size", "large")));
+    private final FeatureValve valve = new FeatureValve("cats", ExpositionLevel.ofPercentage(50),
+            Arrays.asList(new Tag("animal", "cat"), new Tag("size", "large")));
 
     @Test
     public void matchesOnlyWhenAllValveTagsArePresent() {

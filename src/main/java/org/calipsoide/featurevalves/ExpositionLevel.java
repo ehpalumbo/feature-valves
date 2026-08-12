@@ -1,6 +1,8 @@
 package org.calipsoide.featurevalves;
 
 import lombok.EqualsAndHashCode;
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.util.Assert;
 
 /**
@@ -12,16 +14,13 @@ import org.springframework.util.Assert;
  * percentage widens exposure. See {@link FeatureValve#allows(ExpositionLevel)}.
  */
 @EqualsAndHashCode
+@RequiredArgsConstructor(access = lombok.AccessLevel.PRIVATE)
 public class ExpositionLevel implements Comparable<ExpositionLevel> {
 
     /** Zero-percent exposure: allows no requests. */
     public static final ExpositionLevel ZERO = ofPercentage(0);
 
     private final Integer percentage;
-
-    private ExpositionLevel(int percentage) {
-        this.percentage = percentage;
-    }
 
     /**
      * Creates an exposure level from a percentage.
