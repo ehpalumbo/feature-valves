@@ -24,12 +24,6 @@ import static reactor.core.publisher.Mono.just;
 public class YamlFileFeatureFactory {
 
     /**
-     * Creates the factory (stateless).
-     */
-    public YamlFileFeatureFactory() {
-    }
-
-    /**
      * Parses the given feature file into a {@link Feature}.
      *
      * @param file the raw feature file to parse

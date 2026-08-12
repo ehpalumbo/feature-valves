@@ -18,12 +18,6 @@ import java.time.Duration;
 public class CacheConfig {
 
     /**
-     * Creates the configuration (no explicit state).
-     */
-    public CacheConfig() {
-    }
-
-    /**
      * Defines the {@code features} cache with the configured time-to-live.
      *
      * @param ttl the cache TTL from {@code features.cache.ttl}

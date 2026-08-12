@@ -12,12 +12,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class Application {
 
     /**
-     * Creates the application context (no explicit configuration).
-     */
-    public Application() {
-    }
-
-    /**
      * Bootstraps the application.
      *
      * @param args command line arguments
