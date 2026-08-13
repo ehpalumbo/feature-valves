@@ -4,6 +4,8 @@ plugins {
     id 'jacoco'
 }
 
+apply plugin: 'org.springframework.boot.aot'
+
 jacoco {
     toolVersion = '0.8.15'
 }
@@ -51,4 +53,17 @@ tasks.named('jacocoTestReport') {
 
 tasks.withType(Javadoc).configureEach {
     options.addStringOption('Xdoclint:all,-missing', '-quiet')
+}
+
+tasks.named('bootBuildImage') {
+    imageName = "ehpalumbo/feature-valves:${project.version}"
+    environment['BP_JVM_VERSION'] = '25'
+    environment['BP_JVM_JLINK_ENABLED'] = 'true'
+    environment['BP_SPRING_AOT_ENABLED'] = 'true'
+    dependsOn tasks.named('processAot')
+}
+
+// Test AOT is only needed for GraalVM-native test runs; JVM image build only needs processAot.
+tasks.named('processTestAot') {
+    enabled = false
 }
