@@ -37,6 +37,24 @@ In this case, the valve named "all.large.cats" is applied and the hash of the ta
 ### How to use it?
 TODO - This service can be easily containerized (e.g. using Docker), and it can be deployed side-by-side with its client application server to be locally called, or as an ordinary remote service if latency is not an issue.
 
+### Container / Docker
+
+The service is shipped as an OCI image built with Spring Boot's Cloud Native Buildpacks support (the `bootBuildImage` Gradle task). No `Dockerfile` is maintained; the build produces a distroless-style, non-root image based on the Paketo **tiny** (Ubuntu Noble) builder with a `jlink`-generated minimal JRE, and Spring AOT processing is enabled so the image starts faster on the JVM. See the [Container Image Build](docs/operations/container-image.md) doc for the full rationale and alternatives (including Alpine as a future option).
+
+Build the image locally:
+
+```shell
+./gradlew bootBuildImage
+```
+
+Run it (defaults to port 8080):
+
+```shell
+docker run --rm -p 8080:8080 ehpalumbo/feature-valves:0.1.0-SNAPSHOT
+```
+
+The service reads its `features.*` configuration from `application.yaml`; override with environment variables or a config map as needed. On startup you should see `Starting AOT-processed ...`, confirming AOT is active.
+
 ### Module Docs
 
 Please refer to the [Module Docs Index](docs/index.md) for further details.
