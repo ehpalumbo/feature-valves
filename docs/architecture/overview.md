@@ -59,7 +59,7 @@ This layering keeps the domain independent of transport and persistence details 
 ## Design Highlights
 
 - **Eventual consistency, no lock.** The feature state is refreshed asynchronously on a timer; the request path only ever reads the in-memory cache, never touching Git or disk.
-- **Reactive end to end.** File reads use the reactive `DataBufferUtils.read(Path, …)` overload (the `AsynchronousFileChannel` variant was removed in Spring 5.1) with reactive buffers, so even the loading path avoids blocking threads.
+- **Reactive end to end.** File reads use the reactive `DataBufferUtils.read(Path, …)` overload (the `AsynchronousFileChannel` variant was removed in Spring 5.1) with reactive buffers; the remaining blocking filesystem and git operations are offloaded to a bounded-elastic scheduler, so even the loading path avoids blocking threads.
 - **Pluggable sourcing.** `FeatureFileRepository` is an interface; the Git-backed implementation merely decorates the local filesystem one with a git update step. That seam was added later to allow alternate file providers.
 - **Regression-gated migration.** The jump from Boot 2.0 (2017) to Boot 4.1 / Java 25 was staged behind a pre-upgrade test suite — unit tests over the domain/engine and a full-context WebTestClient REST integration test driven by a real local JGit repo. The same suite, migrated from JUnit 4 to Jupiter, proves the upgrade changed no behavior.
 
