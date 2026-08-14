@@ -41,27 +41,29 @@ The workflow is intentionally reusable: it runs on any branch (`master` today, `
 
 ## What the workflow does
 
-1. Checks out the triggering branch and sets up JDK 25 (Liberica) and Gradle.
+1. Checks out the triggering branch (using the `DEPLOY_KEY` deploy key) and sets up JDK 25 (Liberica) and Gradle.
 2. Resolves and validates the release version, and computes the next snapshot version (patch+1, e.g. `0.1.0` → `0.1.1-SNAPSHOT`).
 3. Logs in to ghcr.io with the repository's `GITHUB_TOKEN`.
-4. Runs `./gradlew build` (tests + jar) and `bootBuildImage`, producing `ghcr.io/ehpalumbo/feature-valves:<version>`.
+4. Runs `./gradlew build` (tests + jar) and `bootBuildImage`, producing `ghcr.io/<owner>/<repo>:<version>` (derived from `github.repository`).
 5. Pushes the image to ghcr.io. When releasing from `master`, the image is additionally tagged and pushed as `:latest`.
-6. Creates and pushes a Git tag `v<version>`.
-7. Creates a GitHub Release for `v<version>` whose notes include the published image reference (`docker pull ghcr.io/ehpalumbo/feature-valves:<version>`).
-8. Prepares the next development iteration: it opens a pull request on the triggering branch that bumps `version` in `gradle.properties` to `<next>-SNAPSHOT` (e.g. `0.1.1-SNAPSHOT`). A human merges this PR; protected branches require review.
+6. Commits the release version to `gradle.properties` and pushes it directly to the triggering branch (bypassing branch rulesets via the deploy key), then creates and pushes the Git tag `v<version>`. The tag therefore points at a commit that carries the released version.
+7. Creates a GitHub Release for `v<version>` whose notes include the published image reference (`docker pull ghcr.io/<owner>/<repo>:<version>`) plus automatically generated release notes.
+8. Prepares the next development iteration: commits `version=<next>-SNAPSHOT` (e.g. `0.1.1-SNAPSHOT`) in `gradle.properties` and pushes it directly to the triggering branch.
 
 ## Dependencies and prerequisites
 
-- **`GITHUB_TOKEN`** is used for all authenticated operations; the workflow requests `contents: write` (tag + branch push), `packages: write` (ghcr push), and `pull-requests: write` (bump PR).
-- **ghcr.io** must accept packages for the `ehpalumbo` namespace, and package visibility should be set as desired (public for public consumption, private otherwise).
+- **`DEPLOY_KEY`** (repository secret): an SSH deploy key **with write access**. Git operations (version commits and tag push) authenticate with it, and the `master` ruleset is configured to let deploy keys bypass its rules. Without this, the direct pushes in steps 6 and 8 are rejected.
+- **Ruleset bypass:** the branch ruleset covering the release branch (currently `master`) must list **Deploy keys** in its bypass list. Deploy keys are the recommended bypass actor here because they work for personal-account repositories and are scoped to a single repository.
+- **`GITHUB_TOKEN`** covers the remaining authenticated operations; the workflow requests `contents: write` (GitHub Release) and `packages: write` (ghcr push).
+- **ghcr.io** must accept packages for the repository owner's namespace, and package visibility should be set as desired (public for public consumption, private otherwise).
 - **Docker** is available on the `ubuntu-latest` runner; the image is built via Cloud Native Buildpacks (see [Container Image Build](container-image.md)).
-- The project version lives in **`gradle.properties`** (`version=...`); `build.gradle` no longer hardcodes it. The workflow overrides it on the command line (`-Pversion=...`) so the release build does not modify the working tree.
+- The project version lives in **`gradle.properties`** (`version=...`); `build.gradle` no longer hardcodes it. The workflow overrides it on the command line (`-Pversion=...`) so the build uses the release version regardless of the working tree.
 
 ## Notes and caveats
 
-- **Protected tags:** `master` is protected by branch rulesets, which do not govern tag pushes. If tag protection is added later, pushing `v<version>` with `GITHUB_TOKEN` will fail; a dedicated `RELEASE_PAT` secret would be needed as the push credential.
-- **Bump PR merge:** the next-version PR must be merged by a human. Branch rulesets on `master` (or a `release/*` branch) require review.
-- **CI vs Release:** the `main.yml` CI workflow still builds the image on every push and pull request as build validation, but no longer saves or uploads a master image artifact — publishing to a registry is exclusively the Release workflow's job.
+- **Protected branches:** the version commits (steps 6 and 8) are pushed directly to the protected branch. This relies on the deploy key being in the ruleset's bypass list; if the bypass is removed, the push fails and no release artifacts are published.
+- **Tag placement:** the `v<version>` tag is created after the release-version commit is pushed, so the tagged commit contains `version=<released>` in `gradle.properties` rather than a snapshot.
+- **CI vs Release:** the `main.yml` CI workflow still builds the image on every push and pull request as build validation, but no longer saves or uploads a master image artifact — publishing to a registry is exclusively the Release workflow's job. Pushing the version commits to `master` therefore triggers an ordinary CI run.
 
 ## References
 

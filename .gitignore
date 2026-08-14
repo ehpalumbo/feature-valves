@@ -23,3 +23,7 @@ feature-valves.iml
 build/
 .gradle/
 .idea/
+
+# Deploy key for the release workflow
+release_key
+release_key.pub

@@ -88,7 +88,7 @@ Keep the AOT restrictions in mind: the bean graph is fixed at build time — no 
 
 ## CI
 
-The `.github/workflows/main.yml` build job runs `bootBuildImage` on every CI run (push and pull request) purely as build validation; the image is not saved or uploaded. Publishing is the Release workflow's job: `.github/workflows/release.yml` builds and pushes `ghcr.io/ehpalumbo/feature-valves:<version>` (and `:latest` for master releases), tags the repository, creates a GitHub Release, and prepares the next snapshot version. See the [Release Process](release.md) doc for details.
+The `.github/workflows/main.yml` build job runs `bootBuildImage` on every CI run (push and pull request) purely as build validation; the image is not saved or uploaded. Publishing is the Release workflow's job: `.github/workflows/release.yml` builds and pushes `ghcr.io/<owner>/<repo>:<version>` (derived from `github.repository`; `:latest` for master releases), tags the repository, creates a GitHub Release, and prepares the next snapshot version. See the [Release Process](release.md) doc for details.
 
 ## Configuration
 
