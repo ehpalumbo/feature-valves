@@ -42,11 +42,11 @@ The workflow is intentionally reusable: it runs on any branch (`master` today, `
 ## What the workflow does
 
 1. Checks out the triggering branch (using the `DEPLOY_KEY` deploy key) and sets up JDK 25 (Liberica) and Gradle.
-2. Resolves and validates the release version, and computes the next snapshot version (patch+1, e.g. `0.1.0` → `0.1.1-SNAPSHOT`).
+2. Resolves and validates the release version, computes the next snapshot version (patch+1, e.g. `0.1.0` → `0.1.1-SNAPSHOT`), and pins the release version in `gradle.properties`.
 3. Logs in to ghcr.io with the repository's `GITHUB_TOKEN`.
 4. Runs `./gradlew build` (tests + jar) and `bootBuildImage`, producing `ghcr.io/<owner>/<repo>:<version>` (derived from `github.repository`).
-5. Pushes the image to ghcr.io. When releasing from `master`, the image is additionally tagged and pushed as `:latest`.
-6. Commits the release version to `gradle.properties` and pushes it directly to the triggering branch (bypassing branch rulesets via the deploy key), then creates and pushes the Git tag `v<version>`. The tag therefore points at a commit that carries the released version.
+5. Commits the pinned release version in `gradle.properties` and pushes it directly to the triggering branch (bypassing branch rulesets via the deploy key), then creates and pushes the Git tag `v<version>`. The tag therefore points at a commit that carries the released version.
+6. Pushes the image to ghcr.io. When releasing from `master`, the image is additionally tagged and pushed as `:latest`.
 7. Creates a GitHub Release for `v<version>` whose notes include the published image reference (`docker pull ghcr.io/<owner>/<repo>:<version>`) plus automatically generated release notes.
 8. Prepares the next development iteration: commits `version=<next>-SNAPSHOT` (e.g. `0.1.1-SNAPSHOT`) in `gradle.properties` and pushes it directly to the triggering branch.
 
@@ -57,12 +57,13 @@ The workflow is intentionally reusable: it runs on any branch (`master` today, `
 - **`GITHUB_TOKEN`** covers the remaining authenticated operations; the workflow requests `contents: write` (GitHub Release) and `packages: write` (ghcr push).
 - **ghcr.io** must accept packages for the repository owner's namespace, and package visibility should be set as desired (public for public consumption, private otherwise).
 - **Docker** is available on the `ubuntu-latest` runner; the image is built via Cloud Native Buildpacks (see [Container Image Build](container-image.md)).
-- The project version lives in **`gradle.properties`** (`version=...`); `build.gradle` no longer hardcodes it. The workflow overrides it on the command line (`-Pversion=...`) so the build uses the release version regardless of the working tree.
+- The project version lives in **`gradle.properties`** (`version=...`); `build.gradle` no longer hardcodes it. The workflow pins the release version in the file before building, so the build uses the release version without a CLI override.
 
 ## Notes and caveats
 
-- **Protected branches:** the version commits (steps 6 and 8) are pushed directly to the protected branch. This relies on the deploy key being in the ruleset's bypass list; if the bypass is removed, the push fails and no release artifacts are published.
+- **Protected branches:** the version commits (steps 5 and 8) are pushed directly to the protected branch. This relies on the deploy key being in the ruleset's bypass list; if the bypass is removed, the push fails and no release artifacts are published.
 - **Tag placement:** the `v<version>` tag is created after the release-version commit is pushed, so the tagged commit contains `version=<released>` in `gradle.properties` rather than a snapshot.
+- **Idempotent reruns:** every step is safe to re-run for the same version — the version commit skips when `gradle.properties` is already at the release version, the `v<version>` tag creation skips when the tag already exists at the current commit, the image push re-pushes the same tag, and the GitHub Release step updates an existing release. Recovery from a partially failed run is therefore just re-triggering the workflow. The one hard failure is a tag that already exists at a **different** commit than `HEAD`: the workflow aborts rather than silently repointing the tag, so it must be inspected and removed manually.
 - **CI vs Release:** the `main.yml` CI workflow still builds the image on every push and pull request as build validation, but no longer saves or uploads a master image artifact — publishing to a registry is exclusively the Release workflow's job. Pushing the version commits to `master` therefore triggers an ordinary CI run.
 
 ## References
