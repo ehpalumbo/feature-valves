@@ -8,7 +8,6 @@ tags:
   - "oci-image"
   - "cloud-native-buildpacks"
   - "spring-aot"
-  - "container"
 timestamp: "2026-08-13T00:00:00Z"
 related:
   - "../architecture/overview.md"
@@ -89,7 +88,7 @@ Keep the AOT restrictions in mind: the bean graph is fixed at build time — no 
 
 ## CI
 
-The `.github/workflows/main.yml` build job runs `bootBuildImage` on every CI run, saving the image with `docker save` and uploading it as a build artifact (`feature-valves-image`) only for builds on the `master` branch. There is no registry to push to yet, so the artifact tar is the deliverable.
+The `.github/workflows/main.yml` build job runs `bootBuildImage` on every CI run (push and pull request) purely as build validation; the image is not saved or uploaded. Publishing is the Release workflow's job: `.github/workflows/release.yml` builds and pushes `ghcr.io/<owner>/<repo>:<version>` (derived from `github.repository`; `:latest` for master releases), tags the repository, creates a GitHub Release, and prepares the next snapshot version. See the [Release Process](release.md) doc for details.
 
 ## Configuration
 

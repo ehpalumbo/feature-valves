@@ -1,0 +1,155 @@
+# Release workflow
+
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Semantic version to release (e.g. 0.2.0). Leave blank to use the current version from gradle.properties.'
+        required: false
+        type: string
+  workflow_call:
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+
+  release:
+    runs-on: ubuntu-latest
+
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ghcr.io/${{ github.repository }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+          fetch-tags: true
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: liberica
+          java-version: '25'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Resolve release version
+        run: |
+          # inputs.version is interpolated into this script at workflow-parse time.
+          # Only users with write access can trigger workflow_dispatch, so the
+          # injection surface is limited to maintainers who already hold that power.
+          VERSION="${{ inputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="$(sed -n 's/^version=//p' gradle.properties)"
+          fi
+          VERSION="${VERSION#v}"
+          VERSION="${VERSION%-SNAPSHOT}"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid version '$VERSION' (expected semantic version MAJOR.MINOR.PATCH)"
+            exit 1
+          fi
+          MAJOR="${VERSION%%.*}"
+          REST="${VERSION#*.}"
+          MINOR="${REST%%.*}"
+          PATCH="${REST#*.}"
+          NEXT_PATCH=$((PATCH + 1))
+          IMAGE_NAME_LOWER="$(printf '%s' "${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')"
+          # Pin the release version in the working tree so the build reads it
+          # from gradle.properties (no -Pversion CLI override). The change is
+          # committed and pushed only after the build succeeds.
+          sed -i "s/^version=.*/version=${VERSION}/" gradle.properties
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "NEXT_VERSION=${MAJOR}.${MINOR}.${NEXT_PATCH}-SNAPSHOT" >> "$GITHUB_ENV"
+          echo "IMAGE_NAME=${IMAGE_NAME_LOWER}" >> "$GITHUB_ENV"
+          echo "Releasing version ${VERSION}; next development version ${NEXT_VERSION}"
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Gradle build
+        run: ./gradlew build
+
+      - name: Build image
+        run: ./gradlew bootBuildImage --imageName "${IMAGE_NAME}:${VERSION}"
+
+      - name: Commit release version on the branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet gradle.properties; then
+            echo "gradle.properties already at version ${VERSION}; nothing to commit"
+          else
+            git add gradle.properties
+            git commit -m "Release v${VERSION}"
+          fi
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Create and push Git tag
+        run: |
+          HEAD_COMMIT="$(git rev-parse HEAD)"
+          EXISTING="$(git rev-parse -q --verify "refs/tags/v${VERSION}^{commit}" || true)"
+          if [ -n "$EXISTING" ]; then
+            if [ "$EXISTING" != "$HEAD_COMMIT" ]; then
+              echo "::error::Tag v${VERSION} already exists at ${EXISTING} but HEAD is ${HEAD_COMMIT}; refusing to repoint"
+              exit 1
+            fi
+            echo "Tag v${VERSION} already exists at this commit; nothing to do"
+          else
+            git tag "v${VERSION}"
+            git push origin "v${VERSION}"
+          fi
+
+      - name: Push image to ${{ env.REGISTRY }}
+        run: docker push "${IMAGE_NAME}:${VERSION}"
+
+      - name: Tag and push latest image (master only)
+        if: github.ref == 'refs/heads/master'
+        run: |
+          docker tag "${IMAGE_NAME}:${VERSION}" "${IMAGE_NAME}:latest"
+          docker push "${IMAGE_NAME}:latest"
+
+      - name: Prepare release notes
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/master" ]; then
+            BODY="Published container image: ${IMAGE_NAME}:${VERSION}
+          Also tagged as ${IMAGE_NAME}:latest"
+          else
+            BODY="Published container image: ${IMAGE_NAME}:${VERSION}"
+          fi
+          echo "RELEASE_BODY<<EOF" >> "$GITHUB_ENV"
+          echo "$BODY" >> "$GITHUB_ENV"
+          echo "EOF" >> "$GITHUB_ENV"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: v${{ env.VERSION }}
+          body: ${{ env.RELEASE_BODY }}
+          generate_release_notes: true
+
+      - name: Prepare next development iteration
+        run: |
+          sed -i "s/^version=.*/version=${NEXT_VERSION}/" gradle.properties
+          if git diff --quiet gradle.properties; then
+            echo "gradle.properties already at version ${NEXT_VERSION}; nothing to commit"
+          else
+            git add gradle.properties
+            git commit -m "Prepare next development iteration (bump to ${NEXT_VERSION})"
+          fi
+          git push origin "HEAD:${GITHUB_REF_NAME}"

@@ -45,14 +45,3 @@ jobs:
 
       - name: Build image
         run: ./gradlew bootBuildImage --imageName "ehpalumbo/feature-valves:${GITHUB_SHA::7}"
-
-      - name: Save image
-        if: github.ref == 'refs/heads/master'
-        run: docker save "ehpalumbo/feature-valves:${GITHUB_SHA::7}" -o feature-valves.tar
-
-      - name: Upload image artifact
-        if: github.ref == 'refs/heads/master'
-        uses: actions/upload-artifact@v4
-        with:
-          name: feature-valves-image
-          path: feature-valves.tar

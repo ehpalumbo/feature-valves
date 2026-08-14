@@ -20,3 +20,4 @@ The domain mental models behind the request evaluation semantics, distinct from 
 How the service is built, packaged, and run.
 
 - [Container Image Build](operations/container-image.md) - How the OCI image is built with Spring Boot buildpacks, the Spring AOT processing baked in, and the base-image rationale.
+- [Release Process](operations/release.md) - How to release a new version with the Release workflow, what it does, and its dependencies.
