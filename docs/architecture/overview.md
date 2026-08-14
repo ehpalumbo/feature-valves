@@ -33,7 +33,7 @@ Feature Valves is a standalone feature flag service. Feature definitions live as
 - **Jackson 3** — JSON binding via `tools.jackson` on the Spring Framework 7 baseline.
 - **Caffeine via Spring's cache abstraction** — the cache that holds parsed features with a configurable time-to-live (a rewrite of Guava's cache, wrapped by `CaffeineCache`).
 - **Lombok** — generates getters/`toString` for the behavior-bearing classes.
-- **JGit** — cloning and pulling the remote repository that stores feature definition files.
+- **JGit** — cloning and refreshing the local mirror of the remote repository that stores feature definition files (shallow clone by default, refreshed by fetch + hard reset).
 - **SnakeYAML** — parsing feature definition files into the domain model.
 - **Java 25** — source and target compatibility.
 - **Gradle 9.7 + JUnit Jupiter** — build and the upgraded test suite (see the regression-gated migration below).
@@ -42,7 +42,7 @@ Feature Valves is a standalone feature flag service. Feature definitions live as
 
 The application is split into two broad, deliberately decoupled paths:
 
-- **Load / refresh pipeline** — `FeatureLoader` polls on a fixed interval, delegates to `GitFeatureFileRepository` (which pulls the local clone via `GitRepoManager`, then reads files via `LocalFeatureFileRepository`), converts each `FeatureFile` into a `Feature` via `YamlFileFeatureFactory`, and pushes the result into `CachingFeatureService`. `GitRepoManager` clones once at startup and pulls the tracked branch on every tick.
+- **Load / refresh pipeline** — `FeatureLoader` polls on a fixed interval, delegates to `GitFeatureFileRepository` (which refreshes the local clone via `GitRepoManager` — fetch + hard reset to the tracked branch's remote tip — then reads files via `LocalFeatureFileRepository`), converts each `FeatureFile` into a `Feature` via `YamlFileFeatureFactory`, and pushes the result into `CachingFeatureService`. `GitRepoManager` clones once at startup (shallow by default) and refreshes the tracked branch on every tick.
 - **Request evaluation path** — `FeatureCheckController` accepts a feature check request, resolves a cached `Feature`, and lets the `Feature` domain object execute the check against a set of request tags.
 
 ## Package / Layer Structure
@@ -61,7 +61,7 @@ This layering keeps the domain independent of transport and persistence details 
 - **Eventual consistency, no lock.** The feature state is refreshed asynchronously on a timer; the request path only ever reads the in-memory cache, never touching Git or disk.
 - **Reactive end to end.** File reads use the reactive `DataBufferUtils.read(Path, …)` overload (the `AsynchronousFileChannel` variant was removed in Spring 5.1) with reactive buffers; the remaining blocking filesystem and git operations are offloaded to a bounded-elastic scheduler, so even the loading path avoids blocking threads.
 - **Pluggable sourcing.** `FeatureFileRepository` is an interface; the Git-backed implementation merely decorates the local filesystem one with a git update step. That seam was added later to allow alternate file providers.
-- **Single-lifecycle git sourcing.** `GitRepoManager` clones the remote once at startup, resolving the branch it tracks (an explicit override or the remote default), then only pulls that branch on every refresh tick (and closes the repository on shutdown). A configured branch override is re-checked at each startup and the local checkout is switched when it changed.
+- **Single-lifecycle git sourcing.** `GitRepoManager` clones the remote once at startup, resolving the branch it tracks (an explicit override or the remote default), then only refreshes that branch on every tick (and closes the repository on shutdown). The initial clone is **shallow by default** (`features.git.clone.depth`, default `1`) so only the latest commit is transferred; each refresh fetches the tracked branch and hard-resets the working tree to its remote tip — a read-only mirror that never needs history or a merge base, so shallow clones work end to end. A configured branch override is re-checked at each startup and the local checkout is switched when it changed.
 - **Regression-gated migration.** The jump from Boot 2.0 (2017) to Boot 4.1 / Java 25 was staged behind a pre-upgrade test suite — unit tests over the domain/engine and a full-context WebTestClient REST integration test driven by a real local JGit repo. The same suite, migrated from JUnit 4 to Jupiter, proves the upgrade changed no behavior.
 
 ## Configuration
@@ -70,5 +70,6 @@ Behavior is controlled via `application.yaml` (`features.*`):
 
 - `features.git.remote.url` / `branch` — upstream repository holding feature definitions; `url` is **mandatory** in any environment other than local development (startup aborts with a clear error when it is missing; the `dev` profile supplies it for local runs), while `branch` is optional and defaults to the remote's default branch. A configured `branch` override is re-checked at every startup and the local checkout is switched to the new branch when it changed; without an override the tracked branch is fixed at clone time, so a change to the remote's default branch requires deleting the local clone.
 - `features.git.local.path` / `data` — where the clone lives and where definition files are read from.
+- `features.git.clone.depth` — how many commits are fetched at clone time: `1` (default) clones shallowly for a faster startup, while `0` clones the full history. The depth is preserved across refresh fetches.
 - `features.cache.ttl` — `java.time.Duration` (e.g. `PT10M`) controlling how long a parsed feature stays cached.
 - `features.refresh.interval` — `java.time.Duration` (e.g. `PT1M`) controlling the polling period of the load pipeline.
