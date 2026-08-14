@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.eclipse.jgit.api.CreateBranchCommand.SetupUpstreamMode;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.Ref;
@@ -167,8 +168,15 @@ public class GitRepoManager implements InitializingBean, DisposableBean {
     }
 
     /**
-     * Brings the local clone up to date by pulling the branch tracked by the
-     * git configuration established during {@link #initialize()}.
+     * Brings the local clone up to date by fetching the branch tracked by the
+     * git configuration established during {@link #initialize()} and hard
+     * resetting the working tree to its remote tip.
+     * <p>
+     * A fetch plus hard reset is used rather than a merge-based pull because
+     * the local clone is a read-only mirror of the latest committed files: the
+     * working tree is always reset to {@code origin/&lt;tracked-branch&gt;}, so no
+     * shared history or merge base is required. This also keeps shallow clones
+     * working, where a merge-pull would fail for lack of a common ancestor.
      *
      * @throws RuntimeException if the underlying git operation fails
      */
@@ -177,9 +185,14 @@ public class GitRepoManager implements InitializingBean, DisposableBean {
             if (git == null) {
                 initialize();
             }
-            log.debug("Pulling latest changes from remote into {}", localPath);
-            git.pull()
+            final String tracked = git.getRepository().getBranch();
+            log.debug("Fetching latest changes from remote into {}; tracking branch {}", localPath, tracked);
+            git.fetch()
                     .setRemote("origin")
+                    .call();
+            git.reset()
+                    .setMode(ResetCommand.ResetType.HARD)
+                    .setRef(Constants.R_REMOTES + "origin/" + tracked)
                     .call();
         } catch (Exception e) {
             log.error("Failed to update git repository at {}", localPath, e);
