@@ -1,0 +1,132 @@
+# Release workflow
+
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Semantic version to release (e.g. 0.2.0). Leave blank to use the current version from gradle.properties.'
+        required: false
+        type: string
+  workflow_call:
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: liberica
+          java-version: '25'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Resolve release version
+        run: |
+          VERSION="${{ inputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="$(sed -n 's/^version=//p' gradle.properties)"
+          fi
+          VERSION="${VERSION#v}"
+          VERSION="${VERSION%-SNAPSHOT}"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid version '$VERSION' (expected semantic version MAJOR.MINOR.PATCH)"
+            exit 1
+          fi
+          MAJOR="${VERSION%%.*}"
+          REST="${VERSION#*.}"
+          MINOR="${REST%%.*}"
+          PATCH="${REST#*.}"
+          NEXT_PATCH=$((PATCH + 1))
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "NEXT_VERSION=${MAJOR}.${MINOR}.${NEXT_PATCH}-SNAPSHOT" >> "$GITHUB_ENV"
+          echo "Releasing version ${VERSION}; next development version ${NEXT_VERSION}"
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Gradle build
+        run: ./gradlew build -Pversion="$VERSION"
+
+      - name: Build image
+        run: ./gradlew bootBuildImage -Pversion="$VERSION" --imageName "ghcr.io/ehpalumbo/feature-valves:${VERSION}"
+
+      - name: Push image to ghcr.io
+        run: docker push "ghcr.io/ehpalumbo/feature-valves:${VERSION}"
+
+      - name: Tag and push latest image (master only)
+        if: github.ref == 'refs/heads/master'
+        run: |
+          docker tag "ghcr.io/ehpalumbo/feature-valves:${VERSION}" "ghcr.io/ehpalumbo/feature-valves:latest"
+          docker push "ghcr.io/ehpalumbo/feature-valves:latest"
+
+      - name: Create and push Git tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "v${VERSION}"
+          git push origin "v${VERSION}"
+
+      - name: Prepare release notes
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/master" ]; then
+            BODY="Published container image: ghcr.io/ehpalumbo/feature-valves:${VERSION}
+          Also tagged as ghcr.io/ehpalumbo/feature-valves:latest"
+          else
+            BODY="Published container image: ghcr.io/ehpalumbo/feature-valves:${VERSION}"
+          fi
+          echo "RELEASE_BODY<<EOF" >> "$GITHUB_ENV"
+          echo "$BODY" >> "$GITHUB_ENV"
+          echo "EOF" >> "$GITHUB_ENV"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: v${{ env.VERSION }}
+          body: ${{ env.RELEASE_BODY }}
+
+      - name: Prepare next development iteration (bump PR)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          BRANCH="chore/next-version-${NEXT_VERSION}"
+          git checkout -B "$BRANCH"
+          sed -i "s/^version=.*/version=${NEXT_VERSION}/" gradle.properties
+          if ! git diff --quiet gradle.properties; then
+            git add gradle.properties
+            git commit -m "Prepare next development iteration (bump to ${NEXT_VERSION})"
+          fi
+          git push -u origin "$BRANCH"
+          if gh pr view --head "$BRANCH" --json number >/dev/null 2>&1; then
+            echo "Pull request for ${BRANCH} already exists; skipping creation"
+          else
+            gh pr create \
+              --base "${{ github.ref_name }}" \
+              --head "$BRANCH" \
+              --title "Prepare next development iteration (bump to ${NEXT_VERSION})" \
+              --body "Bumps the project version to ${NEXT_VERSION} after the v${VERSION} release. Merged once the release is confirmed."
+          fi
