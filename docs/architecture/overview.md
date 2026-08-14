@@ -61,14 +61,14 @@ This layering keeps the domain independent of transport and persistence details 
 - **Eventual consistency, no lock.** The feature state is refreshed asynchronously on a timer; the request path only ever reads the in-memory cache, never touching Git or disk.
 - **Reactive end to end.** File reads use the reactive `DataBufferUtils.read(Path, …)` overload (the `AsynchronousFileChannel` variant was removed in Spring 5.1) with reactive buffers; the remaining blocking filesystem and git operations are offloaded to a bounded-elastic scheduler, so even the loading path avoids blocking threads.
 - **Pluggable sourcing.** `FeatureFileRepository` is an interface; the Git-backed implementation merely decorates the local filesystem one with a git update step. That seam was added later to allow alternate file providers.
-- **Single-lifecycle git sourcing.** `GitRepoManager` clones the remote once at startup, resolving and fixing the branch it tracks, then only pulls that branch on every refresh tick (and closes the repository on shutdown). There are no repeated clone or branch-resolution decisions after startup.
+- **Single-lifecycle git sourcing.** `GitRepoManager` clones the remote once at startup, resolving the branch it tracks (an explicit override or the remote default), then only pulls that branch on every refresh tick (and closes the repository on shutdown). A configured branch override is re-checked at each startup and the local checkout is switched when it changed.
 - **Regression-gated migration.** The jump from Boot 2.0 (2017) to Boot 4.1 / Java 25 was staged behind a pre-upgrade test suite — unit tests over the domain/engine and a full-context WebTestClient REST integration test driven by a real local JGit repo. The same suite, migrated from JUnit 4 to Jupiter, proves the upgrade changed no behavior.
 
 ## Configuration
 
 Behavior is controlled via `application.yaml` (`features.*`):
 
-- `features.git.remote.url` / `branch` — upstream repository holding feature definitions; `branch` is optional and defaults to the remote's default branch (resolved at clone time). The tracked branch is fixed when the local clone is created, so changing `branch` — or the remote's default branch — only takes effect after deleting the local clone.
+- `features.git.remote.url` / `branch` — upstream repository holding feature definitions; `branch` is optional and defaults to the remote's default branch. A configured `branch` override is re-checked at every startup and the local checkout is switched to the new branch when it changed; without an override the tracked branch is fixed at clone time, so a change to the remote's default branch requires deleting the local clone.
 - `features.git.local.path` / `data` — where the clone lives and where definition files are read from.
 - `features.cache.ttl` — `java.time.Duration` (e.g. `PT10M`) controlling how long a parsed feature stays cached.
 - `features.refresh.interval` — `java.time.Duration` (e.g. `PT1M`) controlling the polling period of the load pipeline.

@@ -3,6 +3,7 @@ package org.calipsoide.featurevalves.infra.git;
 import java.io.File;
 import java.util.Map;
 
+import org.eclipse.jgit.api.CreateBranchCommand.SetupUpstreamMode;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.Constants;
@@ -81,11 +82,51 @@ public class GitRepoManager implements InitializingBean, DisposableBean {
                             .setDirectory(localPath)
                             .call();
                 }
+                ensureTrackedBranch();
             }
         } catch (Exception e) {
             log.error("Failed to initialize git repository at {}", localPath, e);
             throw new RuntimeException("Failed to initialize git repository", e);
         }
+    }
+
+    /**
+     * Reconciles the local clone with a configured branch override.
+     * <p>
+     * When no override is configured this is a no-op, leaving the branch that
+     * was tracked at clone time in place. When an override is set and differs
+     * from the currently checked-out branch, the remote is fetched, the local
+     * branch is reset to track the override, and the target branch's files are
+     * checked out so subsequent {@link #update()} pulls stay on that branch.
+     * This supports restarting the application with a different
+     * {@code features.git.remote.branch}.
+     *
+     * @throws Exception if the underlying git operation fails
+     */
+    private void ensureTrackedBranch() throws Exception {
+        if (branch.isBlank()) {
+            return;
+        }
+        final String current = git.getRepository().getBranch();
+        if (branch.equals(current)) {
+            return;
+        }
+        log.info(
+                "Branch override {} differs from checked-out branch {}; switching local checkout",
+                branch, current);
+        git.fetch()
+                .setRemote("origin")
+                .call();
+        git.branchCreate()
+                .setName(branch)
+                .setStartPoint(Constants.R_REMOTES + "origin/" + branch)
+                .setUpstreamMode(SetupUpstreamMode.SET_UPSTREAM)
+                .setForce(true)
+                .call();
+        git.checkout()
+                .setName(branch)
+                .setForced(true)
+                .call();
     }
 
     /**

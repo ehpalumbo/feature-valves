@@ -65,6 +65,75 @@ class GitRepoManagerTest {
         assertThat(local("clone").resolve("features/app/main-only.yml")).doesNotExist();
     }
 
+    @Test
+    void switchesToNewOverrideBranchOnExistingClone() throws Exception {
+        final Path origin = createOrigin("main");
+        try (Git git = Git.open(origin.toFile())) {
+            git.branchCreate().setName("legacy").call();
+            git.checkout().setName("legacy").call();
+            commit(git, "features/app/legacy.yml", "active: true\n");
+            git.checkout().setName("main").call();
+            commit(git, "features/app/main-only.yml", "active: true\n");
+        }
+
+        final GitRepoManager first = new GitRepoManager(local("clone").toString(), origin.toString(), "legacy");
+        first.initialize();
+        first.update();
+        assertBranch(local("clone"), "legacy");
+
+        final GitRepoManager restarted = new GitRepoManager(local("clone").toString(), origin.toString(), "main");
+        restarted.initialize();
+        restarted.update();
+
+        assertBranch(local("clone"), "main");
+        assertThat(local("clone").resolve("features/app/main-only.yml")).exists();
+        assertThat(local("clone").resolve("features/app/legacy.yml")).doesNotExist();
+    }
+
+    @Test
+    void keepsCurrentBranchWhenOverrideUnchanged() throws Exception {
+        final Path origin = createOrigin("main");
+        try (Git git = Git.open(origin.toFile())) {
+            git.branchCreate().setName("legacy").call();
+            git.checkout().setName("legacy").call();
+            commit(git, "features/app/legacy.yml", "active: true\n");
+        }
+
+        final GitRepoManager first = new GitRepoManager(local("clone").toString(), origin.toString(), "legacy");
+        first.initialize();
+        first.update();
+        assertBranch(local("clone"), "legacy");
+
+        final GitRepoManager restarted = new GitRepoManager(local("clone").toString(), origin.toString(), "legacy");
+        restarted.initialize();
+        restarted.update();
+
+        assertBranch(local("clone"), "legacy");
+        assertThat(local("clone").resolve("features/app/legacy.yml")).exists();
+    }
+
+    @Test
+    void doesNotSwitchOnDefaultChangeWithoutOverride() throws Exception {
+        final Path origin = createOrigin("main");
+        final GitRepoManager first = new GitRepoManager(local("clone").toString(), origin.toString(), "");
+        first.initialize();
+        first.update();
+        assertBranch(local("clone"), "main");
+
+        try (Git git = Git.open(origin.toFile())) {
+            git.branchCreate().setName("new-default").call();
+            git.checkout().setName("new-default").call();
+            commit(git, "features/app/new-default.yml", "active: true\n");
+        }
+
+        final GitRepoManager restarted = new GitRepoManager(local("clone").toString(), origin.toString(), "");
+        restarted.initialize();
+        restarted.update();
+
+        assertBranch(local("clone"), "main");
+        assertThat(local("clone").resolve("features/app/new-default.yml")).doesNotExist();
+    }
+
     private Path createOrigin(String initialBranch) throws Exception {
         final Path origin = Files.createDirectory(temporaryFolder.resolve("origin"));
         try (Git git = Git.init().setInitialBranch(initialBranch).setDirectory(origin.toFile()).call()) {
