@@ -28,6 +28,11 @@ import lombok.extern.slf4j.Slf4j;
  * The {@code features.git.remote.url} setting is mandatory in every
  * environment except local development; when missing, startup aborts with a
  * clear error message (see {@link #initialize()}).
+ * <p>
+ * The initial clone is shallow by default, transferring only the most recent
+ * commit (see {@code features.git.clone.depth}, default 1); set it to 0 to
+ * clone the full history. The shallow depth is preserved across subsequent
+ * {@link #update()} refreshes.
  *
  * @see GitFeatureFileRepository
  */
@@ -41,6 +46,8 @@ public class GitRepoManager implements InitializingBean, DisposableBean {
 
     private final String branch;
 
+    private final int depth;
+
     private Git git;
 
     /**
@@ -49,14 +56,17 @@ public class GitRepoManager implements InitializingBean, DisposableBean {
      * @param localPath local path where the clone lives
      * @param url       remote repository URL
      * @param branch    branch to track, or empty to use the remote's default branch
+     * @param depth     clone depth, or 0 for a full-history clone
      */
     public GitRepoManager(
             @Value("${features.git.local.path}") String localPath,
             @Value("${features.git.remote.url:}") String url,
-            @Value("${features.git.remote.branch:}") String branch) {
+            @Value("${features.git.remote.branch:}") String branch,
+            @Value("${features.git.clone.depth:1}") int depth) {
         this.localPath = new File(localPath);
         this.url = url;
         this.branch = branch;
+        this.depth = depth;
     }
 
     /**
@@ -88,13 +98,16 @@ public class GitRepoManager implements InitializingBean, DisposableBean {
                     log.info(
                             "Cloning git repository at {} into {}; tracking branch {}",
                             url, localPath, branch);
-                    git = Git
+                    final var clone = Git
                             .cloneRepository()
                             .setURI(url)
                             .setRemote("origin")
                             .setBranch(branch)
-                            .setDirectory(localPath)
-                            .call();
+                            .setDirectory(localPath);
+                    if (depth > 0) {
+                        clone.setDepth(depth);
+                    }
+                    git = clone.call();
                 }
                 ensureTrackedBranch();
             }
@@ -187,9 +200,11 @@ public class GitRepoManager implements InitializingBean, DisposableBean {
             }
             final String tracked = git.getRepository().getBranch();
             log.debug("Fetching latest changes from remote into {}; tracking branch {}", localPath, tracked);
-            git.fetch()
-                    .setRemote("origin")
-                    .call();
+            final var fetch = git.fetch().setRemote("origin");
+            if (depth > 0) {
+                fetch.setDepth(depth);
+            }
+            fetch.call();
             git.reset()
                     .setMode(ResetCommand.ResetType.HARD)
                     .setRef(Constants.R_REMOTES + "origin/" + tracked)

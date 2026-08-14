@@ -4,6 +4,8 @@ features:
       path: /var/tmp/feature-valves
       data: /var/tmp/feature-valves/features
     remote:
+    clone:
+      depth: 1
   cache:
     ttl: PT10M
   refresh:

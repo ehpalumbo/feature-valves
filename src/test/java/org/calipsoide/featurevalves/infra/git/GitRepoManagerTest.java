@@ -13,7 +13,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Unit tests for {@link GitRepoManager} against a real local JGit origin:
- * default-branch tracking, pulls, and branch override precedence.
+ * default-branch tracking, shallow vs full-history clones, and branch override
+ * precedence.
  */
 class GitRepoManagerTest {
 
@@ -23,7 +24,7 @@ class GitRepoManagerTest {
     @Test
     void clonesFromRemoteDefaultBranch() throws Exception {
         final Path origin = createOrigin("main");
-        final GitRepoManager manager = new GitRepoManager(local("clone").toString(), origin.toString(), "");
+        final GitRepoManager manager = new GitRepoManager(local("clone").toString(), origin.toString(), "", 0);
 
         manager.initialize();
         manager.update();
@@ -35,7 +36,7 @@ class GitRepoManagerTest {
     @Test
     void pullsUpdatesFromDefaultBranch() throws Exception {
         final Path origin = createOrigin("main");
-        final GitRepoManager manager = new GitRepoManager(local("clone").toString(), origin.toString(), "");
+        final GitRepoManager manager = new GitRepoManager(local("clone").toString(), origin.toString(), "", 0);
         manager.initialize();
         manager.update();
 
@@ -57,7 +58,7 @@ class GitRepoManagerTest {
             commit(git, "features/app/main-only.yml", "active: true\n");
         }
 
-        final GitRepoManager manager = new GitRepoManager(local("clone").toString(), origin.toString(), "legacy");
+        final GitRepoManager manager = new GitRepoManager(local("clone").toString(), origin.toString(), "legacy", 0);
         manager.initialize();
         manager.update();
 
@@ -77,12 +78,12 @@ class GitRepoManagerTest {
             commit(git, "features/app/main-only.yml", "active: true\n");
         }
 
-        final GitRepoManager first = new GitRepoManager(local("clone").toString(), origin.toString(), "legacy");
+        final GitRepoManager first = new GitRepoManager(local("clone").toString(), origin.toString(), "legacy", 0);
         first.initialize();
         first.update();
         assertBranch(local("clone"), "legacy");
 
-        final GitRepoManager restarted = new GitRepoManager(local("clone").toString(), origin.toString(), "main");
+        final GitRepoManager restarted = new GitRepoManager(local("clone").toString(), origin.toString(), "main", 0);
         restarted.initialize();
         restarted.update();
 
@@ -100,12 +101,12 @@ class GitRepoManagerTest {
             commit(git, "features/app/legacy.yml", "active: true\n");
         }
 
-        final GitRepoManager first = new GitRepoManager(local("clone").toString(), origin.toString(), "legacy");
+        final GitRepoManager first = new GitRepoManager(local("clone").toString(), origin.toString(), "legacy", 0);
         first.initialize();
         first.update();
         assertBranch(local("clone"), "legacy");
 
-        final GitRepoManager restarted = new GitRepoManager(local("clone").toString(), origin.toString(), "legacy");
+        final GitRepoManager restarted = new GitRepoManager(local("clone").toString(), origin.toString(), "legacy", 0);
         restarted.initialize();
         restarted.update();
 
@@ -116,7 +117,7 @@ class GitRepoManagerTest {
     @Test
     void doesNotSwitchOnDefaultChangeWithoutOverride() throws Exception {
         final Path origin = createOrigin("main");
-        final GitRepoManager first = new GitRepoManager(local("clone").toString(), origin.toString(), "");
+        final GitRepoManager first = new GitRepoManager(local("clone").toString(), origin.toString(), "", 0);
         first.initialize();
         first.update();
         assertBranch(local("clone"), "main");
@@ -127,7 +128,7 @@ class GitRepoManagerTest {
             commit(git, "features/app/new-default.yml", "active: true\n");
         }
 
-        final GitRepoManager restarted = new GitRepoManager(local("clone").toString(), origin.toString(), "");
+        final GitRepoManager restarted = new GitRepoManager(local("clone").toString(), origin.toString(), "", 0);
         restarted.initialize();
         restarted.update();
 
@@ -137,11 +138,57 @@ class GitRepoManagerTest {
 
     @Test
     void rejectsMissingRemoteUrl() {
-        final GitRepoManager manager = new GitRepoManager(local("clone").toString(), "  ", "");
+        final GitRepoManager manager = new GitRepoManager(local("clone").toString(), "  ", "", 0);
 
         assertThatThrownBy(manager::initialize)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("features.git.remote.url");
+    }
+
+    @Test
+    void clonesShallowByDefaultAndStaysShallowOnUpdate() throws Exception {
+        final Path origin = createOrigin("main");
+        commitFile(origin, "features/app/added.yml", "active: true\n");
+
+        final GitRepoManager manager = new GitRepoManager(local("clone").toString(), origin.toString(), "", 1);
+        manager.initialize();
+        assertThat(historySize(local("clone"))).isEqualTo(1);
+
+        commitFile(origin, "features/app/updated.yml", "active: true\n");
+        manager.update();
+
+        assertThat(local("clone").resolve("features/app/updated.yml")).exists();
+        assertThat(historySize(local("clone"))).isEqualTo(1);
+    }
+
+    @Test
+    void cloneDepthZeroKeepsFullHistory() throws Exception {
+        final Path origin = createOrigin("main");
+        commitFile(origin, "features/app/added.yml", "active: true\n");
+
+        final GitRepoManager manager = new GitRepoManager(local("clone").toString(), origin.toString(), "", 0);
+        manager.initialize();
+
+        assertThat(historySize(local("clone"))).isGreaterThan(1);
+    }
+
+    @Test
+    void branchOverrideWorksOnShallowClone() throws Exception {
+        final Path origin = createOrigin("main");
+        try (Git git = Git.open(origin.toFile())) {
+            git.branchCreate().setName("legacy").call();
+            git.checkout().setName("legacy").call();
+            commit(git, "features/app/legacy.yml", "active: true\n");
+            git.checkout().setName("main").call();
+        }
+
+        final GitRepoManager manager = new GitRepoManager(local("clone").toString(), origin.toString(), "legacy", 1);
+        manager.initialize();
+        manager.update();
+
+        assertBranch(local("clone"), "legacy");
+        assertThat(local("clone").resolve("features/app/legacy.yml")).exists();
+        assertThat(historySize(local("clone"))).isEqualTo(1);
     }
 
     private Path createOrigin(String initialBranch) throws Exception {
@@ -174,6 +221,18 @@ class GitRepoManagerTest {
     private void assertBranch(Path repo, String expected) throws Exception {
         try (Git git = Git.open(repo.toFile())) {
             assertThat(git.getRepository().getBranch()).isEqualTo(expected);
+        }
+    }
+
+    private int historySize(Path repo) throws Exception {
+        try (Git git = Git.open(repo.toFile())) {
+            final var commits = git.log().call().iterator();
+            int count = 0;
+            while (commits.hasNext()) {
+                commits.next();
+                count++;
+            }
+            return count;
         }
     }
 
