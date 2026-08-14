@@ -93,3 +93,5 @@ The `.github/workflows/main.yml` build job runs `bootBuildImage` on every CI run
 ## Configuration
 
 The container reads the same `features.*` settings from `application.yaml`. The `features.git.remote.url` setting is **mandatory**: `application.yaml` ships without a Git repository URI, and startup aborts with a clear error if it is absent. Supply it at runtime via the `FEATURES_GIT_REMOTE_URL` environment variable (or a config map / `features.git.remote.url` property) for any real deployment. The default local clone and data paths live under `/var/tmp/feature-valves` and can be overridden the same way. For local development only, the `dev` profile provides the development repository URI (`SPRING_PROFILES_ACTIVE=dev`).
+
+The feature repo is cloned **shallowly by default** (`features.git.clone.depth`, default `1`), transferring only the most recent commit so startup is faster; set it to `0` for a full-history clone. Refreshes fetch the tracked branch and hard-reset the working tree to its remote tip rather than a merge-pull, so shallow clones remain fully supported. Override via the `FEATURES_GIT_CLONE_DEPTH` environment variable if needed.
