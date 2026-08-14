@@ -5,7 +5,6 @@ features:
       data: /var/tmp/feature-valves/features
     remote:
       url: https://github.com/ehpalumbo/feature-valves.git
-      branch: master
   cache:
     ttl: PT10M
   refresh:
