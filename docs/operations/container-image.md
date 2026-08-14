@@ -82,7 +82,7 @@ Starting AOT-processed Feature Valves ...
 
 The launcher also logs `Spring AOT Enabled, contributing -Dspring.aot.enabled=true to JAVA_TOOL_OPTIONS`.
 
-Keep the AOT restrictions in mind: the bean graph is fixed at build time — no runtime `@Profile` switching, and `@ConditionalOn*` / `enabled`-style conditions that would change which beans exist are not supported. Feature Valves uses plain `@Value` property injection with no such conditions, so it is AOT-compatible today; introducing profile- or condition-controlled beans later will require revisiting this.
+Keep the AOT restrictions in mind: the bean graph is fixed at build time — no runtime `@Profile` switching, and `@ConditionalOn*` / `enabled`-style conditions that would change which beans exist are not supported. Feature Valves uses plain `@Value` property injection with no such conditions, so it is AOT-compatible today. The `dev` profile introduces only a profile-scoped properties file (`application-dev.yaml`) — no profile- or condition-controlled beans — so it does not affect the bean graph and remains AOT-compatible.
 
 > Note: This uses ahead-of-time processing on the **JVM**. It is distinct from the buildpack **AOT Cache** (`BP_JVM_AOTCACHE_ENABLED`), which performs a build-time training run and bakes a startup cache into the image — not enabled here. Unlike a hand-written multi-stage `Dockerfile` `jlink` step, the `jlink`-generated JRE here is produced by the Paketo buildpack (`BP_JVM_JLINK_ENABLED`), so no build tooling is bypassed.
 
@@ -92,4 +92,4 @@ The `.github/workflows/main.yml` build job runs `bootBuildImage` on every CI run
 
 ## Configuration
 
-The container reads the same `features.*` settings from `application.yaml`. Defaults point at a public Git repository and local paths under `/var/tmp/feature-valves`; override them with environment variables or config maps as needed for a given deployment.
+The container reads the same `features.*` settings from `application.yaml`. The `features.git.remote.url` setting is **mandatory**: `application.yaml` ships without a Git repository URI, and startup aborts with a clear error if it is absent. Supply it at runtime via the `FEATURES_GIT_REMOTE_URL` environment variable (or a config map / `features.git.remote.url` property) for any real deployment. The default local clone and data paths live under `/var/tmp/feature-valves` and can be overridden the same way. For local development only, the `dev` profile provides the development repository URI (`SPRING_PROFILES_ACTIVE=dev`).

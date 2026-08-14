@@ -68,7 +68,7 @@ This layering keeps the domain independent of transport and persistence details 
 
 Behavior is controlled via `application.yaml` (`features.*`):
 
-- `features.git.remote.url` / `branch` — upstream repository holding feature definitions; `branch` is optional and defaults to the remote's default branch. A configured `branch` override is re-checked at every startup and the local checkout is switched to the new branch when it changed; without an override the tracked branch is fixed at clone time, so a change to the remote's default branch requires deleting the local clone.
+- `features.git.remote.url` / `branch` — upstream repository holding feature definitions; `url` is **mandatory** in any environment other than local development (startup aborts with a clear error when it is missing; the `dev` profile supplies it for local runs), while `branch` is optional and defaults to the remote's default branch. A configured `branch` override is re-checked at every startup and the local checkout is switched to the new branch when it changed; without an override the tracked branch is fixed at clone time, so a change to the remote's default branch requires deleting the local clone.
 - `features.git.local.path` / `data` — where the clone lives and where definition files are read from.
 - `features.cache.ttl` — `java.time.Duration` (e.g. `PT10M`) controlling how long a parsed feature stays cached.
 - `features.refresh.interval` — `java.time.Duration` (e.g. `PT1M`) controlling the polling period of the load pipeline.

@@ -1,6 +1,7 @@
 package org.calipsoide.featurevalves.infra.git;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -132,6 +133,15 @@ class GitRepoManagerTest {
 
         assertBranch(local("clone"), "main");
         assertThat(local("clone").resolve("features/app/new-default.yml")).doesNotExist();
+    }
+
+    @Test
+    void rejectsMissingRemoteUrl() {
+        final GitRepoManager manager = new GitRepoManager(local("clone").toString(), "  ", "");
+
+        assertThatThrownBy(manager::initialize)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("features.git.remote.url");
     }
 
     private Path createOrigin(String initialBranch) throws Exception {

@@ -4,7 +4,6 @@ features:
       path: /var/tmp/feature-valves
       data: /var/tmp/feature-valves/features
     remote:
-      url: https://github.com/ehpalumbo/feature-valves.git
   cache:
     ttl: PT10M
   refresh:
