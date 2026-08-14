@@ -1,15 +1,16 @@
 package org.calipsoide.featurevalves.infra.git;
 
+import static java.util.Collections.singletonList;
+
 import java.io.File;
-import java.util.Map;
 
 import org.eclipse.jgit.api.CreateBranchCommand.SetupUpstreamMode;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand;
-import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.Constants;
-import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.transport.RefSpec;
+import org.eclipse.jgit.transport.TagOpt;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,9 +22,9 @@ import lombok.extern.slf4j.Slf4j;
  * Manages the local Git repository that stores feature definition files.
  * <p>
  * Initialization (see {@link #initialize()}) clones the remote and configures
- * the branch to track; subsequent {@link #update()} calls only pull that
- * branch. By default the remote's default branch is tracked; this can be
- * overridden with the {@code features.git.remote.branch} setting.
+ * the branch to track; the clone and subsequent {@link #update()} calls only
+ * fetch that branch. By default the remote's default branch is tracked; this
+ * can be overridden with the {@code features.git.remote.branch} setting.
  * <p>
  * The {@code features.git.remote.url} setting is mandatory in every
  * environment except local development; when missing, startup aborts with a
@@ -89,32 +90,56 @@ public class GitRepoManager implements InitializingBean, DisposableBean {
                             + "dev profile (SPRING_PROFILES_ACTIVE=dev).");
         }
         try {
-            if (git == null) {
-                if (localPath.isDirectory()) {
-                    log.debug("Opening existing git repository at {}", localPath);
-                    git = Git.open(localPath);
-                } else {
-                    final String branch = resolveEffectiveBranch();
-                    log.info(
-                            "Cloning git repository at {} into {}; tracking branch {}",
-                            url, localPath, branch);
-                    final var clone = Git
-                            .cloneRepository()
-                            .setURI(url)
-                            .setRemote("origin")
-                            .setBranch(branch)
-                            .setDirectory(localPath);
-                    if (depth > 0) {
-                        clone.setDepth(depth);
-                    }
-                    git = clone.call();
-                }
+            if (git != null) {
+                log.debug("Git already initialized");
+                return;
+            }
+            if (localPath.isDirectory()) {
+                log.debug("Opening existing git repository at {}", localPath);
+                git = Git.open(localPath);
                 ensureTrackedBranch();
+            } else {
+                final String tracked = branch.isBlank() ? resolveDefaultBranch() : branch;
+                final var clone = Git
+                        .cloneRepository()
+                        .setURI(url)
+                        .setRemote("origin")
+                        .setDirectory(localPath)
+                        .setBranch(tracked)
+                        .setBranchesToClone(singletonList("refs/heads/" + tracked));
+                if (depth > 0) {
+                    clone.setDepth(depth);
+                }
+                git = clone.call();
             }
         } catch (Exception e) {
             log.error("Failed to initialize git repository at {}", localPath, e);
             throw new RuntimeException("Failed to initialize git repository", e);
         }
+    }
+
+    /**
+     * Resolves the remote's default branch via {@code ls-remote}, following the
+     * advertised {@code HEAD} symbolic reference so the initial clone can be
+     * narrowed to a single branch. Falls back to {@code master} when the remote
+     * does not advertise a resolvable default branch.
+     *
+     * @return short name of the remote's default branch
+     * @throws Exception if the underlying git operation fails
+     */
+    private String resolveDefaultBranch() throws Exception {
+        final var remoteRefs = Git
+                .lsRemoteRepository()
+                .setRemote(url)
+                .callAsMap();
+        final var headRef = remoteRefs.get(Constants.HEAD);
+        if (headRef == null || !headRef.isSymbolic()) {
+            log.warn(
+                    "Remote {} does not advertise a resolvable default branch; falling back to {}",
+                    url, Constants.MASTER);
+            return Constants.MASTER;
+        }
+        return Repository.shortenRefName(headRef.getTarget().getName());
     }
 
     /**
@@ -124,7 +149,7 @@ public class GitRepoManager implements InitializingBean, DisposableBean {
      * was tracked at clone time in place. When an override is set and differs
      * from the currently checked-out branch, the remote is fetched, the local
      * branch is reset to track the override, and the target branch's files are
-     * checked out so subsequent {@link #update()} pulls stay on that branch.
+     * checked out so subsequent {@link #update()} fetches stay on that branch.
      * This supports restarting the application with a different
      * {@code features.git.remote.branch}.
      *
@@ -143,10 +168,12 @@ public class GitRepoManager implements InitializingBean, DisposableBean {
                 branch, current);
         git.fetch()
                 .setRemote("origin")
+                .setTagOpt(TagOpt.NO_TAGS)
+                .setRefSpecs(new RefSpec("+refs/heads/" + branch + ":refs/remotes/origin/" + branch))
                 .call();
         git.branchCreate()
                 .setName(branch)
-                .setStartPoint(Constants.R_REMOTES + "origin/" + branch)
+                .setStartPoint("refs/remotes/origin/" + branch)
                 .setUpstreamMode(SetupUpstreamMode.SET_UPSTREAM)
                 .setForce(true)
                 .call();
@@ -199,47 +226,25 @@ public class GitRepoManager implements InitializingBean, DisposableBean {
                 initialize();
             }
             final String tracked = git.getRepository().getBranch();
+            final String remoteRef = "refs/remotes/origin/" + tracked;
             log.debug("Fetching latest changes from remote into {}; tracking branch {}", localPath, tracked);
-            final var fetch = git.fetch().setRemote("origin");
+            final var fetch = git
+                    .fetch()
+                    .setRemote("origin")
+                    .setTagOpt(TagOpt.NO_TAGS)
+                    .setRefSpecs(new RefSpec("+refs/heads/" + tracked + ":" + remoteRef));
             if (depth > 0) {
                 fetch.setDepth(depth);
             }
             fetch.call();
             git.reset()
                     .setMode(ResetCommand.ResetType.HARD)
-                    .setRef(Constants.R_REMOTES + "origin/" + tracked)
+                    .setRef(remoteRef)
                     .call();
         } catch (Exception e) {
             log.error("Failed to update git repository at {}", localPath, e);
             throw new RuntimeException("Failed to update git repository", e);
         }
-    }
-
-    /**
-     * Resolves the branch to track: the configured override when present, the
-     * remote's default branch otherwise.
-     *
-     * @return the branch name to track
-     * @throws GitAPIException if resolving the default branch fails
-     */
-    private String resolveEffectiveBranch() throws GitAPIException {
-        if (!branch.isBlank()) {
-            return branch;
-        }
-        log.debug("No branch override configured; resolving default branch for {}", url);
-        final Map<String, Ref> refs = Git
-                .lsRemoteRepository()
-                .setRemote(url)
-                .callAsMap();
-        final Ref head = refs.get(Constants.HEAD);
-        if (head == null || !head.isSymbolic()) {
-            final String fallback = Constants.MASTER;
-            log.warn(
-                    "Could not resolve default branch for {}: HEAD is not a symbolic ref; falling back to {}",
-                    url, fallback);
-            return fallback;
-        }
-        return Repository.shortenRefName(head.getTarget().getName());
     }
 
 }

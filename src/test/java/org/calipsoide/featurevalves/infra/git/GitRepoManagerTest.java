@@ -8,6 +8,7 @@ import java.nio.file.Path;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.lib.PersonIdent;
+import org.eclipse.jgit.lib.Ref;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -191,6 +192,41 @@ class GitRepoManagerTest {
         assertThat(historySize(local("clone"))).isEqualTo(1);
     }
 
+    @Test
+    void cloneAndUpdateFetchOnlyTrackedBranch() throws Exception {
+        final Path origin = createOrigin("main");
+        try (Git git = Git.open(origin.toFile())) {
+            git.branchCreate().setName("feature").call();
+            git.checkout().setName("feature").call();
+            commit(git, "features/app/feature-only.yml", "active: true\n");
+            git.checkout().setName("main").call();
+        }
+
+        final GitRepoManager manager = new GitRepoManager(local("clone").toString(), origin.toString(), "", 1);
+        manager.initialize();
+
+        assertBranch(local("clone"), "main");
+        assertThat(ref(local("clone"), "refs/remotes/origin/feature")).isNull();
+
+        manager.update();
+
+        assertThat(local("clone").resolve("features/app/feature-only.yml")).doesNotExist();
+        assertThat(ref(local("clone"), "refs/remotes/origin/feature")).isNull();
+
+        try (Git git = Git.open(origin.toFile())) {
+            git.checkout().setName("feature").call();
+            commit(git, "features/app/feature-update.yml", "active: true\n");
+            git.checkout().setName("main").call();
+            commit(git, "features/app/main-update.yml", "active: true\n");
+        }
+
+        manager.update();
+
+        assertThat(local("clone").resolve("features/app/main-update.yml")).exists();
+        assertThat(local("clone").resolve("features/app/feature-update.yml")).doesNotExist();
+        assertThat(ref(local("clone"), "refs/remotes/origin/feature")).isNull();
+    }
+
     private Path createOrigin(String initialBranch) throws Exception {
         final Path origin = Files.createDirectory(temporaryFolder.resolve("origin"));
         try (Git git = Git.init().setInitialBranch(initialBranch).setDirectory(origin.toFile()).call()) {
@@ -221,6 +257,12 @@ class GitRepoManagerTest {
     private void assertBranch(Path repo, String expected) throws Exception {
         try (Git git = Git.open(repo.toFile())) {
             assertThat(git.getRepository().getBranch()).isEqualTo(expected);
+        }
+    }
+
+    private Ref ref(Path repo, String name) throws Exception {
+        try (Git git = Git.open(repo.toFile())) {
+            return git.getRepository().getRefDatabase().findRef(name);
         }
     }
 
