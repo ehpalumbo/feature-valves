@@ -53,7 +53,7 @@ Run it (defaults to port 8080):
 docker run --rm -p 8080:8080 ehpalumbo/feature-valves:0.1.0-SNAPSHOT
 ```
 
-The service reads its `features.*` configuration from `application.yaml`; override with environment variables or a config map as needed. On startup you should see `Starting AOT-processed ...`, confirming AOT is active.
+The service reads its `features.*` configuration from `application.yaml`; override with environment variables or a config map as needed. The `features.git.remote.url` setting is **mandatory** in every environment except local development — startup aborts with a clear error if it is missing — so provide it at runtime, e.g. `docker run -e FEATURES_GIT_REMOTE_URL=...`. For local development only, run with the `dev` profile (`SPRING_PROFILES_ACTIVE=dev`) to use the development repository. On startup you should see `Starting AOT-processed ...`, confirming AOT is active.
 
 ### Module Docs
 

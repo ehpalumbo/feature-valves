@@ -23,6 +23,10 @@ import lombok.extern.slf4j.Slf4j;
  * the branch to track; subsequent {@link #update()} calls only pull that
  * branch. By default the remote's default branch is tracked; this can be
  * overridden with the {@code features.git.remote.branch} setting.
+ * <p>
+ * The {@code features.git.remote.url} setting is mandatory in every
+ * environment except local development; when missing, startup aborts with a
+ * clear error message (see {@link #initialize()}).
  *
  * @see GitFeatureFileRepository
  */
@@ -47,7 +51,7 @@ public class GitRepoManager implements InitializingBean, DisposableBean {
      */
     public GitRepoManager(
             @Value("${features.git.local.path}") String localPath,
-            @Value("${features.git.remote.url}") String url,
+            @Value("${features.git.remote.url:}") String url,
             @Value("${features.git.remote.branch:}") String branch) {
         this.localPath = new File(localPath);
         this.url = url;
@@ -61,9 +65,18 @@ public class GitRepoManager implements InitializingBean, DisposableBean {
      * clones the remote otherwise. Idempotent: a no-op once the clone is set
      * up.
      *
-     * @throws RuntimeException if the underlying git operation fails
+     * @throws IllegalStateException if {@code features.git.remote.url} is not
+     *                               configured
+     * @throws RuntimeException      if the underlying git operation fails
      */
     public void initialize() {
+        if (url.isBlank()) {
+            throw new IllegalStateException(
+                    "features.git.remote.url is not configured. Provide the Git repository URI "
+                            + "(e.g. the FEATURES_GIT_REMOTE_URL environment variable or the "
+                            + "features.git.remote.url property); for local development run with the "
+                            + "dev profile (SPRING_PROFILES_ACTIVE=dev).");
+        }
         try {
             if (git == null) {
                 if (localPath.isDirectory()) {
