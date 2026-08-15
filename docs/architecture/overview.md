@@ -31,7 +31,7 @@ Feature Valves is a standalone feature flag service. Feature definitions live as
 
 - **Spring Boot 4.1.0 (spring-webflux, Spring Framework 7)** and **Project Reactor** — the application and request layer are fully reactive (`Mono`/`Flux`).
 - **Jackson 3** — JSON binding via `tools.jackson` on the Spring Framework 7 baseline.
-- **Caffeine via Spring's cache abstraction** — the cache that holds parsed features with a configurable time-to-live (a rewrite of Guava's cache, wrapped by `CaffeineCache`).
+- **Caffeine** — the in-memory store that holds parsed features with a configurable time-to-live, exposed to the application layer as a plain `ConcurrentMap` (the live `asMap()` view of a Caffeine cache) rather than through Spring's cache abstraction.
 - **Lombok** — generates getters/`toString` for the behavior-bearing classes.
 - **JGit** — cloning and refreshing the local mirror of the remote repository that stores feature definition files (shallow clone by default, refreshed by fetch + hard reset).
 - **SnakeYAML** — parsing feature definition files into the domain model.
@@ -42,7 +42,7 @@ Feature Valves is a standalone feature flag service. Feature definitions live as
 
 The application is split into two broad, deliberately decoupled paths:
 
-- **Load / refresh pipeline** — `FeatureLoader` polls on a fixed interval, delegates to `GitFeatureFileRepository` (which refreshes the local clone via `GitRepoManager` — fetch + hard reset to the tracked branch's remote tip — then reads files via `LocalFeatureFileRepository`), converts each `FeatureFile` into a `Feature` via `YamlFileFeatureFactory`, and pushes the result into `CachingFeatureService`. `GitRepoManager` clones once at startup (shallow by default) and refreshes the tracked branch on every tick.
+- **Load / refresh pipeline** — `FeatureLoader` runs one tick immediately and then one per completed tick plus a fixed delay, delegates to `GitFeatureFileRepository` (which refreshes the local clone via `GitRepoManager` — fetch + hard reset to the tracked branch's remote tip — then reads files via `LocalFeatureFileRepository`), converts each `FeatureFile` into a `Feature` via `YamlFileFeatureFactory`, and pushes the result into `InMemoryFeatureService`, which evicts features no longer seen on tick completion. `GitRepoManager` clones once at startup (shallow by default) and refreshes the tracked branch on every tick.
 - **Request evaluation path** — `FeatureCheckController` accepts a feature check request, resolves a cached `Feature`, and lets the `Feature` domain object execute the check against a set of request tags.
 
 ## Package / Layer Structure
@@ -50,7 +50,7 @@ The application is split into two broad, deliberately decoupled paths:
 The source tree is organized into architectural layers under the `org.calipsoide.featurevalves` package, with `Application.java` kept at the root as the composition root:
 
 - **`domain/`** — the pure domain model and evaluation engine: value objects (`ClientApplicationId`, `FeatureId`, `Tag`, `ExpositionLevel`), the `Feature`/`FeatureValve` semantics, and the `Evaluator`/`HashingEvaluator`. This layer carries no framework or infrastructure dependencies; everything else depends on it.
-- **`application/`** — application services and port definitions that orchestrate the load and evaluation flows, including the `FeatureFileRepository` / `FeatureReader` interfaces and `FeatureLoader`/`CachingFeatureService` implementations.
+- **`application/`** — application services and port definitions that orchestrate the load and evaluation flows, including the `FeatureFileRepository` / `FeatureReader` interfaces and `FeatureLoader`/`InMemoryFeatureService` implementations.
 - **`web/`** — the reactive HTTP boundary: `FeatureCheckController` plus its request/response DTOs.
 - **`infra/`** — infrastructure adapters implementing the ports: `git/` (repository handling), `yaml/` (feature definition parsing via `YamlFileFeatureFactory`), and `caching/` (Caffeine cache bean config).
 
@@ -71,5 +71,5 @@ Behavior is controlled via `application.yaml` (`features.*`):
 - `features.git.remote.url` / `branch` — upstream repository holding feature definitions; `url` is **mandatory** in any environment other than local development (startup aborts with a clear error when it is missing; the `dev` profile supplies it for local runs), while `branch` is optional and defaults to the remote's default branch. A configured `branch` override is re-checked at every startup and the local checkout is switched to the new branch when it changed; without an override the tracked branch is fixed at clone time, so a change to the remote's default branch requires deleting the local clone.
 - `features.git.local.path` / `data` — where the clone lives and where definition files are read from.
 - `features.git.clone.depth` — how many commits are fetched at clone time: `1` (default) clones shallowly for a faster startup, while `0` clones the full history. The depth is preserved across refresh fetches.
-- `features.cache.ttl` — `java.time.Duration` (e.g. `PT10M`) controlling how long a parsed feature stays cached.
+- `features.cache.ttl` — `java.time.Duration` (e.g. `PT10M`) controlling how long a parsed feature stays cached; serves as a backstop for failed refresh ticks (a successful tick evicts removed features immediately, TTL notwithstanding).
 - `features.refresh.interval` — `java.time.Duration` (e.g. `PT1M`) controlling the polling period of the load pipeline.

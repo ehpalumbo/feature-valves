@@ -10,7 +10,10 @@ import java.nio.file.Path;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.lib.PersonIdent;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -29,6 +32,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
  */
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @AutoConfigureWebTestClient
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class FeatureCheckControllerIntegrationTest {
 
     @TempDir
@@ -82,10 +86,11 @@ public class FeatureCheckControllerIntegrationTest {
         registry.add("features.git.local.data", () -> local.resolve("features").toString());
         registry.add("features.git.remote.branch", () -> "master");
         registry.add("features.cache.ttl", () -> "PT1H");
-        registry.add("features.refresh.interval", () -> "PT1H");
+        registry.add("features.refresh.interval", () -> "PT2S");
     }
 
     @Test
+    @Order(1)
     public void alwaysOnFeatureReturnsTrue() throws Exception {
         waitUntilLoaded();
         webTestClient.post()
@@ -98,6 +103,7 @@ public class FeatureCheckControllerIntegrationTest {
     }
 
     @Test
+    @Order(2)
     public void alwaysOffFeatureReturnsFalse() throws Exception {
         waitUntilLoaded();
         webTestClient.post()
@@ -110,6 +116,7 @@ public class FeatureCheckControllerIntegrationTest {
     }
 
     @Test
+    @Order(3)
     public void nonMatchingTagsReturnFalseNot404() throws Exception {
         waitUntilLoaded();
         webTestClient.post()
@@ -122,6 +129,7 @@ public class FeatureCheckControllerIntegrationTest {
     }
 
     @Test
+    @Order(4)
     public void unknownFeatureReturns404() throws Exception {
         waitUntilLoaded();
         webTestClient.post()
@@ -132,11 +140,34 @@ public class FeatureCheckControllerIntegrationTest {
                 .expectStatus().isNotFound();
     }
 
+    @Test
+    @Order(5)
+    public void removedFeatureReturns404AfterRefresh() throws Exception {
+        waitUntilLoaded();
+        try (Git git = Git.open(temporaryFolder.resolve("origin").toFile())) {
+            git.rm().addFilepattern("features/app/always-off.yml").call();
+            final var identity = new PersonIdent("feature-valves", "feature-valves@example.org");
+            git.commit().setAuthor(identity).setCommitter(identity)
+                    .setMessage("remove always-off").call();
+        }
+        waitUntilRemoved();
+    }
+
     private void waitUntilLoaded() throws Exception {
         final long deadline = System.currentTimeMillis() + 15_000;
         while (statusOf(ALWAYS_ON, MATCHING_BODY) != HttpStatus.OK) {
             if (System.currentTimeMillis() > deadline) {
                 throw new AssertionError("features were not loaded within 15s");
+            }
+            Thread.sleep(500);
+        }
+    }
+
+    private void waitUntilRemoved() throws Exception {
+        final long deadline = System.currentTimeMillis() + 15_000;
+        while (statusOf(ALWAYS_OFF, MATCHING_BODY) != HttpStatus.NOT_FOUND) {
+            if (System.currentTimeMillis() > deadline) {
+                throw new AssertionError("removed feature still served after 15s");
             }
             Thread.sleep(500);
         }
