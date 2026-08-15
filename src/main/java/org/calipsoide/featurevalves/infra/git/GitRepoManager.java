@@ -6,6 +6,7 @@ import java.io.File;
 
 import org.eclipse.jgit.api.CreateBranchCommand.SetupUpstreamMode;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.ListBranchCommand.ListMode;
 import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.Repository;
@@ -121,6 +122,12 @@ public class GitRepoManager implements InitializingBean, DisposableBean {
                 log.info(
                         "Git clone complete; local repository at {}; tracking branch {}",
                         localPath, tracked);
+            }
+            if (log.isDebugEnabled()) {
+                git.branchList()
+                        .setListMode(ListMode.ALL)
+                        .call()
+                        .forEach(ref -> log.debug("Found branch: {}", ref.getName()));
             }
         } catch (Exception e) {
             log.error("Failed to initialize git repository at {}", localPath, e);
