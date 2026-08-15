@@ -98,11 +98,18 @@ public class GitRepoManager implements InitializingBean, DisposableBean {
                 log.debug("Opening existing git repository at {}", localPath);
                 git = Git.open(localPath);
                 ensureTrackedBranch();
+                log.info(
+                        "Git repository opened; local repository at {}; tracking branch {}",
+                        localPath, git.getRepository().getBranch());
             } else {
                 final String tracked = branch.isBlank() ? resolveDefaultBranch() : branch;
+                log.debug(
+                        "Cloning remote {} into {}; tracking branch {}",
+                        url, localPath, tracked);
                 final var clone = Git
                         .cloneRepository()
                         .setURI(url)
+                        .setTagOption(TagOpt.NO_TAGS)
                         .setRemote("origin")
                         .setDirectory(localPath)
                         .setBranch(tracked)
@@ -111,6 +118,9 @@ public class GitRepoManager implements InitializingBean, DisposableBean {
                     clone.setDepth(depth);
                 }
                 git = clone.call();
+                log.info(
+                        "Git clone complete; local repository at {}; tracking branch {}",
+                        localPath, tracked);
             }
         } catch (Exception e) {
             log.error("Failed to initialize git repository at {}", localPath, e);
@@ -120,14 +130,20 @@ public class GitRepoManager implements InitializingBean, DisposableBean {
 
     /**
      * Resolves the remote's default branch via {@code ls-remote}, following the
-     * advertised {@code HEAD} symbolic reference so the initial clone can be
-     * narrowed to a single branch. Falls back to {@code master} when the remote
-     * does not advertise a resolvable default branch.
+     * advertised {@code HEAD} symbolic reference.
+     * <p>
+     * The probe is required because
+     * the branch name must be known before cloning: it is passed to
+     * {@code setBranchesToClone} so the clone is narrowed to a single ref, since
+     * JGit clones every remote branch when {@code branchesToClone} is not
+     * narrowed. Falls back to {@code master} when the remote does not advertise
+     * a resolvable default branch.
      *
      * @return short name of the remote's default branch
      * @throws Exception if the underlying git operation fails
      */
     private String resolveDefaultBranch() throws Exception {
+        log.debug("Resolving default branch for remote {}", url);
         final var remoteRefs = Git
                 .lsRemoteRepository()
                 .setRemote(url)
@@ -166,11 +182,15 @@ public class GitRepoManager implements InitializingBean, DisposableBean {
         log.info(
                 "Branch override {} differs from checked-out branch {}; switching local checkout",
                 branch, current);
-        git.fetch()
+        final var fetch = git
+                .fetch()
                 .setRemote("origin")
                 .setTagOpt(TagOpt.NO_TAGS)
-                .setRefSpecs(new RefSpec("+refs/heads/" + branch + ":refs/remotes/origin/" + branch))
-                .call();
+                .setRefSpecs(new RefSpec("+refs/heads/" + branch + ":refs/remotes/origin/" + branch));
+        if (depth > 0) {
+            fetch.setDepth(depth);
+        }
+        fetch.call();
         git.branchCreate()
                 .setName(branch)
                 .setStartPoint("refs/remotes/origin/" + branch)

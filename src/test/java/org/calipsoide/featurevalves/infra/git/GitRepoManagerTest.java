@@ -94,6 +94,32 @@ class GitRepoManagerTest {
     }
 
     @Test
+    void overrideSwitchOnExistingCloneStaysShallow() throws Exception {
+        final Path origin = createOrigin("main");
+        try (Git git = Git.open(origin.toFile())) {
+            git.branchCreate().setName("legacy").call();
+            git.checkout().setName("legacy").call();
+            commit(git, "features/app/legacy.yml", "active: true\n");
+            git.checkout().setName("main").call();
+            commit(git, "features/app/main-only.yml", "active: true\n");
+        }
+
+        final GitRepoManager first = new GitRepoManager(local("clone").toString(), origin.toString(), "legacy", 1);
+        first.initialize();
+        first.update();
+        assertBranch(local("clone"), "legacy");
+        assertThat(historySize(local("clone"))).isEqualTo(1);
+
+        final GitRepoManager restarted = new GitRepoManager(local("clone").toString(), origin.toString(), "main", 1);
+        restarted.initialize();
+        restarted.update();
+
+        assertBranch(local("clone"), "main");
+        assertThat(local("clone").resolve("features/app/main-only.yml")).exists();
+        assertThat(historySize(local("clone"))).isEqualTo(1);
+    }
+
+    @Test
     void keepsCurrentBranchWhenOverrideUnchanged() throws Exception {
         final Path origin = createOrigin("main");
         try (Git git = Git.open(origin.toFile())) {
@@ -225,6 +251,54 @@ class GitRepoManagerTest {
         assertThat(local("clone").resolve("features/app/main-update.yml")).exists();
         assertThat(local("clone").resolve("features/app/feature-update.yml")).doesNotExist();
         assertThat(ref(local("clone"), "refs/remotes/origin/feature")).isNull();
+    }
+
+    @Test
+    void cloneNarrowsToDefaultBranchOnly() throws Exception {
+        final Path origin = createOrigin("main");
+        try (Git git = Git.open(origin.toFile())) {
+            git.branchCreate().setName("feature").call();
+            git.checkout().setName("feature").call();
+            commit(git, "features/app/feature-only.yml", "active: true\n");
+            git.checkout().setName("main").call();
+            git.branchCreate().setName("another").call();
+            git.checkout().setName("another").call();
+            commit(git, "features/app/another-only.yml", "active: true\n");
+            git.checkout().setName("main").call();
+        }
+
+        final GitRepoManager manager = new GitRepoManager(local("clone").toString(), origin.toString(), "", 0);
+        manager.initialize();
+
+        assertThat(ref(local("clone"), "refs/remotes/origin/main")).isNotNull();
+        assertThat(ref(local("clone"), "refs/remotes/origin/feature")).isNull();
+        assertThat(ref(local("clone"), "refs/remotes/origin/another")).isNull();
+        assertThat(ref(local("clone"), "refs/heads/feature")).isNull();
+        assertThat(ref(local("clone"), "refs/heads/another")).isNull();
+        assertThat(local("clone").resolve("features/app/feature-only.yml")).doesNotExist();
+        assertThat(local("clone").resolve("features/app/another-only.yml")).doesNotExist();
+    }
+
+    @Test
+    void cloneWithOverrideNarrowsToOverrideBranchOnly() throws Exception {
+        final Path origin = createOrigin("main");
+        try (Git git = Git.open(origin.toFile())) {
+            git.branchCreate().setName("feature").call();
+            git.checkout().setName("feature").call();
+            commit(git, "features/app/feature-only.yml", "active: true\n");
+            git.checkout().setName("main").call();
+            commit(git, "features/app/main-only.yml", "active: true\n");
+        }
+
+        final GitRepoManager manager = new GitRepoManager(local("clone").toString(), origin.toString(), "feature", 0);
+        manager.initialize();
+
+        assertBranch(local("clone"), "feature");
+        assertThat(ref(local("clone"), "refs/remotes/origin/feature")).isNotNull();
+        assertThat(ref(local("clone"), "refs/remotes/origin/main")).isNull();
+        assertThat(ref(local("clone"), "refs/heads/main")).isNull();
+        assertThat(local("clone").resolve("features/app/feature-only.yml")).exists();
+        assertThat(local("clone").resolve("features/app/main-only.yml")).doesNotExist();
     }
 
     private Path createOrigin(String initialBranch) throws Exception {
