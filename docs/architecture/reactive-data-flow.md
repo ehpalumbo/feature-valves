@@ -14,6 +14,7 @@ related:
 resource:
   - "src/main/java/org/calipsoide/featurevalves/application/FeatureLoader.java"
   - "src/main/java/org/calipsoide/featurevalves/application/InMemoryFeatureService.java"
+  - "src/main/java/org/calipsoide/featurevalves/infra/scheduling/FeatureRefreshScheduler.java"
   - "src/main/java/org/calipsoide/featurevalves/web/FeatureCheckController.java"
 ---
 
@@ -23,7 +24,7 @@ The service runs two independent flows: a background refresh that keeps the cach
 
 ## Refresh Pipeline
 
-`FeatureLoader` (an `InitializingBean`) starts a single unbounded reactive loop at startup, in which one tick runs immediately and every subsequent tick runs after the previous one completes plus a fixed delay of `features.refresh.interval` (`Mono.defer(tick).delayElement(refresh).repeat()`). Because each tick only starts after the previous one has completed, ticks never overlap even when a refresh is slow.
+`FeatureLoader` exposes a single `load()` that runs one full refresh of the pipeline described below. Its cadence and lifecycle live in `FeatureRefreshScheduler` (infra): an initial tick blocks startup — retrying with exponential backoff (`features.refresh.backoff.min`/`max`, `max-attempts`) until it succeeds, so the app is not ready before the cache is populated — and then a single unbounded reactive loop runs one tick per completed tick plus a fixed delay of `features.refresh.interval` (`Mono.delay(interval).then(tick).repeat()`). Because each tick only starts after the previous one has completed, ticks never overlap even when a refresh is slow.
 
 1. A tick calls `GitFeatureFileRepository.loadAll()`, which:
    - calls `GitRepoManager.update()` to fetch just the tracked branch (a branch-scoped refspec, so only that branch's tip is transferred on multi-branch repositories) and hard-reset the local clone's working tree to its remote tip via JGit (a read-only mirror, so no merge base is needed and shallow clones work end to end), offloaded to a bounded-elastic scheduler so the blocking call never holds a reactive pipeline thread; the clone that set up the tracked branch happened earlier in a startup initialization phase (`GitRepoManager` is an `InitializingBean`, cloning shallowly by default, resolving the remote's default branch via `ls-remote` — a probe needed to name the branch so `branchesToClone` can narrow the clone to a single ref, since JGit clones every remote branch otherwise) that re-checks a configured `features.git.remote.branch` override and switches the local checkout when it changed;
@@ -32,7 +33,7 @@ The service runs two independent flows: a background refresh that keeps the cach
 3. `YamlFileFeatureFactory.read(file)` parses the YAML and assembles a `Feature` (valves, evaluator, active flag). Parsing errors surface as errors in the reactive stream; `FeatureLoader` wraps each read in `Mono.defer(...).onErrorResume(...)` so a single malformed file is skipped without aborting the tick.
 4. The tick's stream is subscribed to `InMemoryFeatureService` (a `Subscriber<Feature>`), which inserts each parsed feature into a Caffeine-backed `ConcurrentMap` (exposed by `CacheConfig` as the live `asMap()` view of a Caffeine cache) and records it as seen in the current tick. When the tick completes, every cached feature that was not seen is evicted — so features deleted from the repository stop being served on the next refresh. A failed tick (e.g. the git update errors) leaves the cache untouched, and the entry TTL (`features.cache.ttl`) remains as a backstop.
 
-The loop keeps running across misfires: a failed tick completes empty (its error is delivered to the subscriber, which declines to evict) so the fixed-delay loop simply proceeds to the next interval.
+The loop keeps running across misfires: the scheduler resumes each failed tick with an empty signal (its error is delivered to the subscriber, which declines to evict), so the fixed-delay loop simply proceeds to the next interval.
 
 ## Request Evaluation Path
 

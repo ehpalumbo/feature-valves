@@ -1,9 +1,12 @@
 package org.calipsoide.featurevalves.application;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.nio.CharBuffer;
-import java.time.Duration;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.calipsoide.featurevalves.domain.ClientApplicationId;
 import org.calipsoide.featurevalves.domain.Evaluator;
@@ -19,40 +22,41 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 /**
- * Verifies {@link FeatureLoader#loadFeatures()}: files stream through the
- * reader into features, and a file that fails to parse is skipped rather
- * than aborting the tick.
+ * Verifies {@link FeatureLoader#load()}: files stream through the reader into
+ * features, and a file that fails to parse is skipped rather than aborting the
+ * run.
  */
 public class FeatureLoaderTest {
 
     private final FeatureId id = new FeatureId(ClientApplicationId.of("app"), "feature");
 
     @Test
-    public void tickStreamsParsedFeatures() {
+    public void loadStreamsParsedFeatures() {
         final FeatureFile file = new FeatureFile(id, CharBuffer.wrap("irrelevant"));
         final Feature expected = feature();
+        final RecordingSink sink = new RecordingSink();
         final FeatureLoader loader = new FeatureLoader(
                 () -> Flux.just(file),
                 candidate -> Mono.just(expected),
-                new RecordingSink(),
-                Duration.ofHours(1));
+                sink);
         StepVerifier
-                .create(loader.loadFeatures())
-                .expectNext(expected)
+                .create(loader.load())
                 .verifyComplete();
+        assertThat(sink.features).containsExactly(expected);
     }
 
     @Test
-    public void tickSkipsMalformedFiles() {
+    public void loadSkipsMalformedFiles() {
         final FeatureFile bad = new FeatureFile(id, CharBuffer.wrap("broken"));
+        final RecordingSink sink = new RecordingSink();
         final FeatureLoader loader = new FeatureLoader(
                 () -> Flux.just(bad),
                 candidate -> Mono.error(new IllegalArgumentException("cannot parse " + candidate.id())),
-                new RecordingSink(),
-                Duration.ofHours(1));
+                sink);
         StepVerifier
-                .create(loader.loadFeatures())
+                .create(loader.load())
                 .verifyComplete();
+        assertThat(sink.features).isEmpty();
     }
 
     private Feature feature() {
@@ -62,6 +66,8 @@ public class FeatureLoaderTest {
 
     private static final class RecordingSink implements Subscriber<Feature> {
 
+        private final List<Feature> features = new CopyOnWriteArrayList<>();
+
         @Override
         public void onSubscribe(Subscription subscription) {
             subscription.request(Long.MAX_VALUE);
@@ -69,7 +75,7 @@ public class FeatureLoaderTest {
 
         @Override
         public void onNext(Feature feature) {
-            // no-op
+            features.add(feature);
         }
 
         @Override

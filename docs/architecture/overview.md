@@ -42,7 +42,7 @@ Feature Valves is a standalone feature flag service. Feature definitions live as
 
 The application is split into two broad, deliberately decoupled paths:
 
-- **Load / refresh pipeline** — `FeatureLoader` runs one tick immediately and then one per completed tick plus a fixed delay, delegates to `GitFeatureFileRepository` (which refreshes the local clone via `GitRepoManager` — fetch + hard reset to the tracked branch's remote tip — then reads files via `LocalFeatureFileRepository`), converts each `FeatureFile` into a `Feature` via `YamlFileFeatureFactory`, and pushes the result into `InMemoryFeatureService`, which evicts features no longer seen on tick completion. `GitRepoManager` clones once at startup (shallow by default) and refreshes the tracked branch on every tick.
+- **Load / refresh pipeline** — `FeatureLoader` exposes a single `load()` that reloads all files, delegates to `GitFeatureFileRepository` (which refreshes the local clone via `GitRepoManager` — fetch + hard reset to the tracked branch's remote tip — then reads files via `LocalFeatureFileRepository`), converts each `FeatureFile` into a `Feature` via `YamlFileFeatureFactory`, and pushes the result into `InMemoryFeatureService`, which evicts features no longer seen on load completion. `FeatureRefreshScheduler` (infra) drives it: one initial tick blocks startup (retrying with exponential backoff until it succeeds, so the app is only ready once the cache is populated) and then one tick per completed tick plus a fixed delay. `GitRepoManager` clones once at startup (shallow by default) and refreshes the tracked branch on every tick.
 - **Request evaluation path** — `FeatureCheckController` accepts a feature check request, resolves a cached `Feature`, and lets the `Feature` domain object execute the check against a set of request tags.
 
 ## Package / Layer Structure
@@ -52,7 +52,7 @@ The source tree is organized into architectural layers under the `org.calipsoide
 - **`domain/`** — the pure domain model and evaluation engine: value objects (`ClientApplicationId`, `FeatureId`, `Tag`, `ExpositionLevel`), the `Feature`/`FeatureValve` semantics, and the `Evaluator`/`HashingEvaluator`. This layer carries no framework or infrastructure dependencies; everything else depends on it.
 - **`application/`** — application services and port definitions that orchestrate the load and evaluation flows, including the `FeatureFileRepository` / `FeatureReader` interfaces and `FeatureLoader`/`InMemoryFeatureService` implementations.
 - **`web/`** — the reactive HTTP boundary: `FeatureCheckController` plus its request/response DTOs.
-- **`infra/`** — infrastructure adapters implementing the ports: `git/` (repository handling), `yaml/` (feature definition parsing via `YamlFileFeatureFactory`), and `caching/` (Caffeine cache bean config).
+- **`infra/`** — infrastructure adapters implementing the ports: `git/` (repository handling), `yaml/` (feature definition parsing via `YamlFileFeatureFactory`), `caching/` (Caffeine cache bean config), and `scheduling/` (`FeatureRefreshScheduler`, which owns the refresh cadence and lifecycle).
 
 This layering keeps the domain independent of transport and persistence details and gives each layer a single, clearly named package to search. The two flows described above map onto these layers: the refresh pipeline runs through `application` + `infra`, while the request path runs `web` → `application` → `domain`.
 
@@ -73,3 +73,4 @@ Behavior is controlled via `application.yaml` (`features.*`):
 - `features.git.clone.depth` — how many commits are fetched at clone time: `1` (default) clones shallowly for a faster startup, while `0` clones the full history. The depth is preserved across refresh fetches.
 - `features.cache.ttl` — `java.time.Duration` (e.g. `PT10M`) controlling how long a parsed feature stays cached; serves as a backstop for failed refresh ticks (a successful tick evicts removed features immediately, TTL notwithstanding).
 - `features.refresh.interval` — `java.time.Duration` (e.g. `PT1M`) controlling the polling period of the load pipeline.
+- `features.refresh.backoff.min` / `max` — `java.time.Duration` (defaults `PT1S` / `PT1M`) controlling the exponential backoff of the initial tick's retry; `max-attempts` (default `5`) bounds the retries before startup aborts.

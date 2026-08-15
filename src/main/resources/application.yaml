@@ -10,6 +10,10 @@ features:
     ttl: PT10M
   refresh:
     interval: PT1M
+    backoff:
+      min: PT1S
+      max: PT1M
+      max-attempts: 5
 
 logging:
   level:
