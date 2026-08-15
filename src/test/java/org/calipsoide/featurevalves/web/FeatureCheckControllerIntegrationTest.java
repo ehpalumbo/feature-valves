@@ -1,25 +1,23 @@
 package org.calipsoide.featurevalves.web;
 
+import static org.awaitility.Awaitility.await;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.lib.PersonIdent;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webtestclient.autoconfigure.AutoConfigureWebTestClient;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -32,7 +30,6 @@ import org.springframework.test.web.reactive.server.WebTestClient;
  */
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @AutoConfigureWebTestClient
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class FeatureCheckControllerIntegrationTest {
 
     @TempDir
@@ -90,9 +87,8 @@ public class FeatureCheckControllerIntegrationTest {
     }
 
     @Test
-    @Order(1)
-    public void alwaysOnFeatureReturnsTrue() throws Exception {
-        waitUntilLoaded();
+    public void alwaysOnFeatureReturnsTrue() {
+        waitUntilStatus(ALWAYS_ON, MATCHING_BODY, HttpStatus.OK);
         webTestClient.post()
                 .uri(ALWAYS_ON)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -103,9 +99,8 @@ public class FeatureCheckControllerIntegrationTest {
     }
 
     @Test
-    @Order(2)
-    public void alwaysOffFeatureReturnsFalse() throws Exception {
-        waitUntilLoaded();
+    public void alwaysOffFeatureReturnsFalse() {
+        waitUntilStatus(ALWAYS_OFF, MATCHING_BODY, HttpStatus.OK);
         webTestClient.post()
                 .uri(ALWAYS_OFF)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -116,9 +111,8 @@ public class FeatureCheckControllerIntegrationTest {
     }
 
     @Test
-    @Order(3)
-    public void nonMatchingTagsReturnFalseNot404() throws Exception {
-        waitUntilLoaded();
+    public void nonMatchingTagsReturnFalseNot404() {
+        waitUntilStatus(ALWAYS_ON, MATCHING_BODY, HttpStatus.OK);
         webTestClient.post()
                 .uri(ALWAYS_ON)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -129,9 +123,7 @@ public class FeatureCheckControllerIntegrationTest {
     }
 
     @Test
-    @Order(4)
-    public void unknownFeatureReturns404() throws Exception {
-        waitUntilLoaded();
+    public void unknownFeatureReturns404() {
         webTestClient.post()
                 .uri(UNKNOWN)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -141,47 +133,61 @@ public class FeatureCheckControllerIntegrationTest {
     }
 
     @Test
-    @Order(5)
     public void removedFeatureReturns404AfterRefresh() throws Exception {
-        waitUntilLoaded();
+        final String uri = featureUri("removed");
+        addFeature("removed", """
+                active: true
+                eval:
+                  - name
+                valves:
+                  - name: on
+                    tags:
+                      t: x
+                    value: 100
+                """);
+        waitUntilStatus(uri, MATCHING_BODY, HttpStatus.OK);
+        removeFeature("removed");
+        waitUntilStatus(uri, MATCHING_BODY, HttpStatus.NOT_FOUND);
+    }
+
+    private void waitUntilStatus(String uri, String body, HttpStatus expected) {
+        await()
+                .atMost(Duration.ofSeconds(15))
+                .untilAsserted(() -> webTestClient.post()
+                        .uri(uri)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(body)
+                        .exchange()
+                        .expectStatus().isEqualTo(expected));
+    }
+
+    private static String featureUri(String featureCode) {
+        return "/feature_valves/app/" + featureCode + "/checks";
+    }
+
+    private static void addFeature(String featureCode, String yaml) throws Exception {
+        commit(featureCode, yaml, true);
+    }
+
+    private static void removeFeature(String featureCode) throws Exception {
+        commit(featureCode, null, false);
+    }
+
+    private static void commit(String featureCode, String yaml, boolean add) throws Exception {
         try (Git git = Git.open(temporaryFolder.resolve("origin").toFile())) {
-            git.rm().addFilepattern("features/app/always-off.yml").call();
+            final String relative = "features/app/" + featureCode + ".yml";
+            if (add) {
+                final Path file = git.getRepository().getWorkTree().toPath().resolve(relative);
+                Files.createDirectories(file.getParent());
+                Files.write(file, yaml.getBytes(Charset.defaultCharset()));
+                git.add().addFilepattern(relative).call();
+            } else {
+                git.rm().addFilepattern(relative).call();
+            }
             final var identity = new PersonIdent("feature-valves", "feature-valves@example.org");
             git.commit().setAuthor(identity).setCommitter(identity)
-                    .setMessage("remove always-off").call();
+                    .setMessage((add ? "add " : "remove ") + featureCode).call();
         }
-        waitUntilRemoved();
-    }
-
-    private void waitUntilLoaded() throws Exception {
-        final long deadline = System.currentTimeMillis() + 15_000;
-        while (statusOf(ALWAYS_ON, MATCHING_BODY) != HttpStatus.OK) {
-            if (System.currentTimeMillis() > deadline) {
-                throw new AssertionError("features were not loaded within 15s");
-            }
-            Thread.sleep(500);
-        }
-    }
-
-    private void waitUntilRemoved() throws Exception {
-        final long deadline = System.currentTimeMillis() + 15_000;
-        while (statusOf(ALWAYS_OFF, MATCHING_BODY) != HttpStatus.NOT_FOUND) {
-            if (System.currentTimeMillis() > deadline) {
-                throw new AssertionError("removed feature still served after 15s");
-            }
-            Thread.sleep(500);
-        }
-    }
-
-    private HttpStatusCode statusOf(String uri, String body) {
-        return webTestClient.post()
-                .uri(uri)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(body)
-                .exchange()
-                .expectBody()
-                .returnResult()
-                .getStatus();
     }
 
     private static void writeYaml(Path file, String content) throws IOException {
