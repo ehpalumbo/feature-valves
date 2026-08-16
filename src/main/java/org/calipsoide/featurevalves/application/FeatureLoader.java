@@ -2,9 +2,11 @@ package org.calipsoide.featurevalves.application;
 
 import org.calipsoide.featurevalves.domain.Feature;
 import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -57,12 +59,7 @@ public class FeatureLoader {
      * @return a {@code Mono} that completes in lockstep with the run
      */
     public Mono<Void> load() {
-        final Sinks.Empty<Void> done = Sinks.empty();
-        loadFeatures()
-                .doOnComplete(done::tryEmitEmpty)
-                .doOnError(done::tryEmitError)
-                .subscribe(featureSink);
-        return done.asMono();
+        return new LoadRun(featureSink).asMono(loadFeatures());
     }
 
     /**
@@ -80,6 +77,47 @@ public class FeatureLoader {
             log.warn("Skipping {}: {}", file.id(), error.toString());
             return Mono.empty();
         }));
+    }
+
+    /**
+     * Subscribes a feature stream to the cache sink and mirrors the run's
+     * terminal signal into a {@code Mono}, emitting only after the sink has
+     * fully processed the signal (e.g. evicted stale entries on completion).
+     */
+    @RequiredArgsConstructor
+    private static final class LoadRun implements Subscriber<Feature> {
+
+        private final Sinks.Empty<Void> done = Sinks.empty();
+
+        private final Subscriber<Feature> sink;
+
+        Mono<Void> asMono(Flux<Feature> features) {
+            features.subscribe(this);
+            return done.asMono();
+        }
+
+        @Override
+        public void onSubscribe(Subscription subscription) {
+            sink.onSubscribe(subscription);
+        }
+
+        @Override
+        public void onNext(Feature feature) {
+            sink.onNext(feature);
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            sink.onError(throwable);
+            done.tryEmitError(throwable);
+        }
+
+        @Override
+        public void onComplete() {
+            sink.onComplete();
+            done.tryEmitEmpty();
+        }
+
     }
 
 }

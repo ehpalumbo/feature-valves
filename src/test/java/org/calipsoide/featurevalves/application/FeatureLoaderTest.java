@@ -19,6 +19,7 @@ import org.reactivestreams.Subscription;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
 import reactor.test.StepVerifier;
 
 /**
@@ -57,6 +58,44 @@ public class FeatureLoaderTest {
                 .create(loader.load())
                 .verifyComplete();
         assertThat(sink.features).isEmpty();
+    }
+
+    @Test
+    public void loadCompletesAfterSinkCompletes() {
+        final List<String> order = new CopyOnWriteArrayList<>();
+        final Subscriber<Feature> sink = new Subscriber<>() {
+            @Override
+            public void onSubscribe(Subscription subscription) {
+                subscription.request(Long.MAX_VALUE);
+            }
+
+            @Override
+            public void onNext(Feature feature) {
+                // no-op
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+                // no-op
+            }
+
+            @Override
+            public void onComplete() {
+                order.add("sink.complete");
+            }
+        };
+        final FeatureFile file = new FeatureFile(id, CharBuffer.wrap("irrelevant"));
+        final Sinks.Many<FeatureFile> source = Sinks.many().unicast().onBackpressureBuffer();
+        final FeatureLoader loader = new FeatureLoader(
+                source::asFlux,
+                candidate -> Mono.just(feature()),
+                sink);
+        loader.load()
+                .doOnSuccess(v -> order.add("load.complete"))
+                .subscribe();
+        source.tryEmitNext(file);
+        source.tryEmitComplete();
+        assertThat(order).containsExactly("sink.complete", "load.complete");
     }
 
     private Feature feature() {
