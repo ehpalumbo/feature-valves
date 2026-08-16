@@ -1,11 +1,13 @@
 package org.calipsoide.featurevalves.web;
 
+import static org.awaitility.Awaitility.await;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.lib.PersonIdent;
@@ -16,7 +18,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webtestclient.autoconfigure.AutoConfigureWebTestClient;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -82,12 +83,12 @@ public class FeatureCheckControllerIntegrationTest {
         registry.add("features.git.local.data", () -> local.resolve("features").toString());
         registry.add("features.git.remote.branch", () -> "master");
         registry.add("features.cache.ttl", () -> "PT1H");
-        registry.add("features.refresh.interval", () -> "PT1H");
+        registry.add("features.refresh.interval", () -> "PT2S");
     }
 
     @Test
-    public void alwaysOnFeatureReturnsTrue() throws Exception {
-        waitUntilLoaded();
+    public void alwaysOnFeatureReturnsTrue() {
+        waitUntilStatus(ALWAYS_ON, MATCHING_BODY, HttpStatus.OK);
         webTestClient.post()
                 .uri(ALWAYS_ON)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -98,8 +99,8 @@ public class FeatureCheckControllerIntegrationTest {
     }
 
     @Test
-    public void alwaysOffFeatureReturnsFalse() throws Exception {
-        waitUntilLoaded();
+    public void alwaysOffFeatureReturnsFalse() {
+        waitUntilStatus(ALWAYS_OFF, MATCHING_BODY, HttpStatus.OK);
         webTestClient.post()
                 .uri(ALWAYS_OFF)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -110,8 +111,8 @@ public class FeatureCheckControllerIntegrationTest {
     }
 
     @Test
-    public void nonMatchingTagsReturnFalseNot404() throws Exception {
-        waitUntilLoaded();
+    public void nonMatchingTagsReturnFalseNot404() {
+        waitUntilStatus(ALWAYS_ON, MATCHING_BODY, HttpStatus.OK);
         webTestClient.post()
                 .uri(ALWAYS_ON)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -122,8 +123,7 @@ public class FeatureCheckControllerIntegrationTest {
     }
 
     @Test
-    public void unknownFeatureReturns404() throws Exception {
-        waitUntilLoaded();
+    public void unknownFeatureReturns404() {
         webTestClient.post()
                 .uri(UNKNOWN)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -132,25 +132,62 @@ public class FeatureCheckControllerIntegrationTest {
                 .expectStatus().isNotFound();
     }
 
-    private void waitUntilLoaded() throws Exception {
-        final long deadline = System.currentTimeMillis() + 15_000;
-        while (statusOf(ALWAYS_ON, MATCHING_BODY) != HttpStatus.OK) {
-            if (System.currentTimeMillis() > deadline) {
-                throw new AssertionError("features were not loaded within 15s");
-            }
-            Thread.sleep(500);
-        }
+    @Test
+    public void removedFeatureReturns404AfterRefresh() throws Exception {
+        final String uri = featureUri("removed");
+        addFeature("removed", """
+                active: true
+                eval:
+                  - name
+                valves:
+                  - name: on
+                    tags:
+                      t: x
+                    value: 100
+                """);
+        waitUntilStatus(uri, MATCHING_BODY, HttpStatus.OK);
+        removeFeature("removed");
+        waitUntilStatus(uri, MATCHING_BODY, HttpStatus.NOT_FOUND);
     }
 
-    private HttpStatusCode statusOf(String uri, String body) {
-        return webTestClient.post()
-                .uri(uri)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(body)
-                .exchange()
-                .expectBody()
-                .returnResult()
-                .getStatus();
+    private void waitUntilStatus(String uri, String body, HttpStatus expected) {
+        await()
+                .atMost(Duration.ofSeconds(15))
+                .untilAsserted(() -> webTestClient.post()
+                        .uri(uri)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(body)
+                        .exchange()
+                        .expectStatus().isEqualTo(expected));
+    }
+
+    private static String featureUri(String featureCode) {
+        return "/feature_valves/app/" + featureCode + "/checks";
+    }
+
+    private static void addFeature(String featureCode, String yaml) throws Exception {
+        commit(featureCode, yaml, true);
+    }
+
+    private static void removeFeature(String featureCode) throws Exception {
+        commit(featureCode, null, false);
+    }
+
+    private static void commit(String featureCode, String yaml, boolean add) throws Exception {
+        try (Git git = Git.open(temporaryFolder.resolve("origin").toFile())) {
+            final String relative = "features/app/" + featureCode + ".yml";
+            if (add) {
+                final Path file = git.getRepository().getWorkTree().toPath().resolve(relative);
+                Files.createDirectories(file.getParent());
+                Files.write(file, yaml.getBytes(Charset.defaultCharset()));
+                git.add().addFilepattern(relative).call();
+            } else {
+                git.rm().addFilepattern(relative).call();
+            }
+            final var identity = new PersonIdent("feature-valves", "feature-valves@example.org");
+            git.commit().setAuthor(identity).setCommitter(identity)
+                    .setMessage((add ? "add " : "remove ") + featureCode).call();
+        }
     }
 
     private static void writeYaml(Path file, String content) throws IOException {

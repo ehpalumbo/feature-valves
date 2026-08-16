@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono;
 /**
  * Read-side contract for resolving a {@link Feature} by its {@link FeatureId}.
  *
- * @see CachingFeatureService
+ * @see InMemoryFeatureService
  */
 public interface FeatureService {
 
