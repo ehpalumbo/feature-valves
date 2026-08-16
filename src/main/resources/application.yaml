@@ -10,6 +10,8 @@ features:
     ttl: PT10M
   refresh:
     interval: PT1M
+    startup-timeout: PT1M
+    stop-timeout: PT5S
     backoff:
       min: PT1S
       max: PT1M

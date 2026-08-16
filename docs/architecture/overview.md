@@ -73,4 +73,6 @@ Behavior is controlled via `application.yaml` (`features.*`):
 - `features.git.clone.depth` — how many commits are fetched at clone time: `1` (default) clones shallowly for a faster startup, while `0` clones the full history. The depth is preserved across refresh fetches.
 - `features.cache.ttl` — `java.time.Duration` (e.g. `PT10M`) controlling how long a parsed feature stays cached; serves as a backstop for failed refresh ticks (a successful tick evicts removed features immediately, TTL notwithstanding).
 - `features.refresh.interval` — `java.time.Duration` (e.g. `PT1M`) controlling the polling period of the load pipeline.
-- `features.refresh.backoff.min` / `max` — `java.time.Duration` (defaults `PT1S` / `PT1M`) controlling the exponential backoff of the initial tick's retry; `max-attempts` (default `5`) bounds the retries before startup aborts.
+- `features.refresh.startup-timeout` — `java.time.Duration` (default `PT1M`) bounding how long the blocking startup tick may run before startup aborts.
+- `features.refresh.stop-timeout` — `java.time.Duration` (default `PT5S`) bounding how long a stop waits for an in-flight tick before proceeding with shutdown.
+- `features.refresh.backoff.min` / `max` — `java.time.Duration` (defaults `PT1S` / `PT1M`) controlling the exponential backoff of the initial tick's retry; `max-attempts` (default `5`) is the total number of attempts (that is, `max-attempts - 1` retries) before startup aborts.
